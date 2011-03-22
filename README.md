@@ -46,6 +46,5 @@ Attributes selection:
 
 Size limit:
 
-	$ ldapsearch -v -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret -b "dc=synrc,dc=com" 'sn=*' cn sn -z 1
-
-
+	$ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn -z 1 \
+	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret

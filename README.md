@@ -31,15 +31,18 @@ USAGE
 
 LDAP port is 1389 by default. Anonymous bind is unsupported. Still server is pretty usable:
 
-	$ ldapsearch -v -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret -b "dc=synrc,dc=com" 'objectClass=*'
+	$ ldapsearch -b "dc=synrc,dc=com" 'objectClass=*'
+	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Filters:
 
-	$ ldapsearch -v -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret -b "dc=synrc,dc=com" '(&(uid=*)(cn=Ma*))'
+	$ ldapsearch -b "dc=synrc,dc=com" '(&(uid=*)(cn=Ma*))' \
+	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Attributes selection:
 
-	$ ldapsearch -v -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret -b "dc=synrc,dc=com" 'sn=*' cn sn
+	$ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn \
+	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Size limit:
 

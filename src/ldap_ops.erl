@@ -27,7 +27,7 @@ bind(BindDN, {simple, Password}) ->
     {ok, Res} = search(BindDN, BindDN, baseObject, 1, Filter, []),
     case length(Res) of
 	0 -> {error, invalid_credentials};
-	1 -> {ok, BindDN}
+	_ -> {ok, BindDN}
     end;
 bind(_BindDN,_Creds) ->
     {error, unsupported_method}.
@@ -40,11 +40,15 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
     FieldsOption = ldap_filter:fields(Attributes),
     LimitOption = ldap_filter:limit(SizeLimit),
     Res = emongo:find_all(eds, "root", 
-			  ScopeFilter ++ EntryFilter, FieldsOption ++ LimitOption),
+			  ScopeFilter ++ EntryFilter,
+			  FieldsOption ++ LimitOption),
     {ok, Res}.
 
 search_reply(From, [Item|Result], MessageID) ->
-    Attrs = lists:flatten(lists:map(fun(I) -> item_to_attribute(I) end, Item)),
+    Attrs = lists:flatten(
+	      lists:map(fun(I) -> 
+				item_to_attribute(I) 
+			end, Item)),
     {value, {_, "dn", [DN]}, PartialAttrs} = lists:keytake("dn", 2, Attrs),
     Entry = {'SearchResultEntry', DN, PartialAttrs},
     ldap_fsm:reply(From, {{searchResEntry, Entry}, MessageID}),

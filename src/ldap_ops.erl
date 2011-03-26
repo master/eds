@@ -130,12 +130,16 @@ handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, State) ->
     ldap_fsm:reply(From, {{searchResDone, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{modifyRequest, Options},_BindDN,_From}, State) ->
+handle_cast({{modifyRequest, Options},_MessageID,_BindDN,_From}, State) ->
     io:format("-> ~p~n", [Options]),
     {stop, normal, State};
 
-handle_cast({{addRequest, Options},_BindDN,_From}, State) ->
+handle_cast({{addRequest, Options}, MessageID, BindDN, From}, State) ->
     {'AddRequest'} = Options,
+    {stop, normal, State};
+
+handle_cast({{delRequest, Options},_MessageID,_BindDN,_From}, State) ->
+    io:format("-> ~p~n", [Options]),
     {stop, normal, State};
 
 handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, State) ->

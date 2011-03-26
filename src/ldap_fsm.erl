@@ -30,10 +30,9 @@ reply(Pid, Message) when is_pid(Pid)  ->
 set_bind(Pid, BindDN) when is_pid(Pid)  ->
     gen_fsm:send_event(Pid, {set_bind, BindDN}).
 
-
 init([]) ->
     process_flag(trap_exit, true),
-    {ok, listen, #state{binddn=undefined, ops=[]}}.
+    {ok, listen, #state{binddn=undefined, ops=bush:init()}}.
 
 listen({socket_ready, Socket}, State) when is_port(Socket) ->
     inet:setopts(Socket, [{active, once}, {packet, 0}, binary]),
@@ -49,8 +48,8 @@ read({set_bind, BindDN}, State) ->
 
 read({in, {{abandonRequest, Options},_}}, #state{ops=Ops} = State) ->
     {'AbandonRequest', MessageID} = Options,
-    case ops_take(Ops, MessageID) of
-	{Pid,_, NewOps} -> exit(Pid, 'EXIT');
+    case bush:take_k(MessageID, Ops) of
+	{MessageID, Pid, NewOps} -> exit(Pid, 'EXIT');
 	false -> NewOps = Ops
     end,
     {next_state, read, State#state{ops=NewOps}, ?TIMEOUT};
@@ -60,7 +59,7 @@ read({in, {{unbindRequest,_},_}}, State) ->
 
 read({in, {ProtocolOp, MessageID}}, #state{ops=Ops, binddn=BindDN} = State) ->
     {ok, Pid} = eds_app:start_ops(),
-    NewOps = ops_insert(Ops, MessageID, Pid),
+    NewOps = bush:insert(MessageID, Pid, Ops),
     erlang:link(Pid),
     ldap_ops:dispatch(Pid, ProtocolOp, MessageID, BindDN, self()),
     {next_state, read, State#state{ops=NewOps}, ?TIMEOUT};
@@ -77,13 +76,6 @@ read(timeout, State) ->
 read(_Data,  State) ->
     {stop, normal, State}.
 
-
-ops_insert(Ops, Key, Value) ->
-    [{Key, Value} | Ops].
-
-ops_take(Ops, Key) ->
-    lists:keytake(Key, 1, Ops).
-
 decode(Envelope) ->
     case asn1rt:decode('LDAP', 'LDAPMessage', Envelope) of
         {ok, {'LDAPMessage', MessageID, ProtocolOp,_}} ->
@@ -97,7 +89,6 @@ encode({ProtocolOp, MessageID}) when is_tuple(ProtocolOp), is_integer(MessageID)
         {ok, Envelope} -> Envelope;
         Error -> {error_encoding, Error}
     end.
-
 
 handle_event(Event, StateName, State) ->
     {stop, {StateName, undefined_event, Event}, State}.
@@ -116,10 +107,7 @@ handle_info({bind, BindDN}, StateName, State) ->
     {next_state, StateName, State#state{binddn=BindDN}};
 
 handle_info({'EXIT', Pid,_}, StateName, #state{ops=Ops} = State) ->
-    case lists:keytake(Pid, 2, Ops) of
-	{_,_, NewOps} -> ok;
-	false -> NewOps = Ops
-    end,
+    NewOps = bush:delete_v(Pid, Ops),
     {next_state, StateName, State#state{ops=NewOps}};
 
 handle_info(_Info, StateName, State) ->

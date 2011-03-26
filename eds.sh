@@ -5,5 +5,5 @@ erl \
     -pa ../emongo/ebin \
     -pa ebin \
     -boot start_sasl \
-    -eval "application:start(eds)"
+    -eval "appmon:start(), application:start(eds)"
 

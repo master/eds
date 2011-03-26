@@ -72,7 +72,7 @@ handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, State) ->
     case bind(BindDN, Creds) of
 	{ok, BindDN} -> 
 	    Response = #'BindResponse'{resultCode = success,
-				       matchedDN = BindDN,
+				       matchedDN = "",
 				       diagnosticMessage = ""},
 	    ldap_fsm:set_bind(From, BindDN);
 	{error, unsupported_method} ->
@@ -108,6 +108,7 @@ handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, State) ->
     {stop, normal, State};
 
 handle_cast({{modifyRequest, Options},_BindDN,_From}, State) ->
+    io:format("-> ~p~n", [Options]),
     {'ModifyRequest',_,_} = Options,
     {stop, normal, State};
 

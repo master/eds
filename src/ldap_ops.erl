@@ -20,12 +20,11 @@ start_link() ->
 init(_) ->
     {ok, {}}.
 
+%% @doc @todo
 dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
-rdn(DN) ->
-    lists:reverse(DN).
-
+%% @doc @todo
 bind(BindDN, {simple, Password}) ->
     Filter = {equalityMatch, 
 	      {'AttributeValueAssertion', "userPassword", Password}},
@@ -33,6 +32,7 @@ bind(BindDN, {simple, Password}) ->
 bind(_BindDN,_Creds) ->
     authMethodNotSupported.
 
+%% @doc @todo
 bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
     BindResult;
 bind_reply(_From, [],_MessageID) ->
@@ -42,6 +42,7 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     ldap_fsm:set_bind(From, BindDN),
     success.
 
+%% @doc @todo
 search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes) ->
     insufficientAccessRights;
 search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
@@ -53,6 +54,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
 		    ScopeFilter ++ EntryFilter,
 		    FieldsOption ++ LimitOption).
 
+%% @doc @todo
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
@@ -67,20 +69,7 @@ search_reply(From, [Item|Result], MessageID) ->
 search_reply(_From, [],_MessageID) ->
     success.
 
-object_modify(Key, NewValue, Entry) when is_list(Key) ->
-    object_modify(list_to_bitstring(Key), NewValue, Entry);
-object_modify(Key, NewValue, Entry) when is_bitstring(Key),
-					 is_list(NewValue) ->
-    object_modify(Key, list_to_bitstring(NewValue), Entry);
-object_modify(Key, NewValue, Entry) when is_bitstring(Key),
-					 is_bitstring(NewValue) ->
-    lists:keyreplace(Key, 1, Entry, {Key, NewValue}).
-
-object_get(Key, Entry) when is_list(Key) ->
-    object_get(list_to_bitstring(Key), Entry);
-object_get(Key, Entry) when is_bitstring(Key) ->
-    element(2, lists:keyfind(Key, 1, Entry)).
-
+%% @doc @todo
 modify_dn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -96,23 +85,59 @@ modify_dn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
 		_Else -> protocolError
 	    end
     end.	
-		
+
+%% @doc @todo
+add(_BindDN,_DN,_Attributes) ->
+    success.
+
+%% @doc @todo
+parse_response([Response]) ->
+    case lists:keyfind(<<"err">>, 1, Response) of
+	{<<"err">>, undefined} -> success;
+	_Else -> protocolError
+    end.
+
+%% @doc @todo
+object_modify(Key, NewValue, Entry) when is_list(Key) ->
+    object_modify(list_to_bitstring(Key), NewValue, Entry);
+object_modify(Key, NewValue, Entry) when is_bitstring(Key),
+					 is_list(NewValue) ->
+    object_modify(Key, list_to_bitstring(NewValue), Entry);
+object_modify(Key, NewValue, Entry) when is_bitstring(Key),
+					 is_bitstring(NewValue) ->
+    lists:keyreplace(Key, 1, Entry, {Key, NewValue}).
+
+%% @doc @todo
+object_get(Key, Entry) when is_list(Key) ->
+    object_get(list_to_bitstring(Key), Entry);
+object_get(Key, Entry) when is_bitstring(Key) ->
+    element(2, lists:keyfind(Key, 1, Entry)).
+
+%% @doc @todo
+rdn(DN) ->
+    lists:reverse(DN).
+
+%% @doc @todo
 item_to_attribute({_Name, {oid, _}}) ->
     [];
 item_to_attribute({<<"_rdn">>,_}) ->
     [];
 item_to_attribute({Name, Value}) when is_bitstring(Name),
 				      is_bitstring(Value) ->
-    {'PartialAttribute', 
-     bitstring_to_list(Name), 
-     [bitstring_to_list(Value)]};
+    {'PartialAttribute', bitstring_to_list(Name), [bitstring_to_list(Value)]};
 item_to_attribute({Name, {array, Value}}) when is_bitstring(Name), 
 					       is_list(Value) ->
     lists:map(fun(V) -> 
-		      {'PartialAttribute', 
-		       bitstring_to_list(Name),
-		       [bitstring_to_list(V)]}
+		      {'PartialAttribute', bitstring_to_list(Name), [bitstring_to_list(V)]}
 	      end, Value).
+
+%% @doc @todo
+attribute_to_item({'PartialAttribute', Name, [Value]}) when is_list(Name),
+							    is_list(Value) ->
+    {Name, Value};
+attribute_to_item({'PartialAttribute', Name, Value}) when is_list(Name),
+							  is_list(Value) ->
+    {Name, {array, Value}}.
 
 handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, State) ->
     {'BindRequest',_, BindDN, Creds} = Options,
@@ -135,7 +160,10 @@ handle_cast({{modifyRequest, Options},_MessageID,_BindDN,_From}, State) ->
     {stop, normal, State};
 
 handle_cast({{addRequest, Options}, MessageID, BindDN, From}, State) ->
-    {'AddRequest'} = Options,
+    {'AddRequest', DN, Attributes} = Options,
+    Result = add(BindDN, DN, Attributes),
+    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
+    ldap_fsm:reply(From, {{addResponse, Response}, MessageID}),
     {stop, normal, State};
 
 handle_cast({{delRequest, Options},_MessageID,_BindDN,_From}, State) ->

@@ -21,11 +21,11 @@ Populate database with sample LDIF:
 
         $ priv/populate.py t/000-init.ldif
 
-	dc=synrc,dc=com
-	uid=admin,dc=synrc,dc=com
-	ou=People,dc=synrc,dc=com
-	cn=Oleg Smirnov,ou=People,dc=synrc,dc=com
-	cn=Maxim Sokhatsky,ou=People,dc=synrc,dc=com
+        dc=synrc,dc=com
+        uid=admin,dc=synrc,dc=com
+        ou=People,dc=synrc,dc=com
+        cn=Oleg Smirnov,ou=People,dc=synrc,dc=com
+        cn=Maxim Sokhatsky,ou=People,dc=synrc,dc=com
 
 
 USAGE
@@ -36,42 +36,42 @@ LDAP port is 1389 by default. Anonymous bind is unsupported.
 
 Search
 ------
-	$ ldapsearch -b "dc=synrc,dc=com" 'objectClass=*'
-	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        $ ldapsearch -b "dc=synrc,dc=com" 'objectClass=*'
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Filters:
 
-	$ ldapsearch -b "dc=synrc,dc=com" '(&(uid=*)(cn=Ma*))' \
-	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        $ ldapsearch -b "dc=synrc,dc=com" '(&(uid=*)(cn=Ma*))' \
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Attributes selection:
 
-	$ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn \
-	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        $ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn \
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Size limit on query result:
 
-	$ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn -z 1 \
-	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        $ ldapsearch -b "dc=synrc,dc=com" 'sn=*' cn sn -z 1 \
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
 Add
 ---
-	$ ldapmodify -f t/001-add.ldif 
-	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret	
+        $ ldapmodify -f t/001-add.ldif 
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret	
 
-	adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
+        adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
+        adding new entry "cn=bob,ou=People,dc=synrc,dc=com"
 
-	adding new entry "cn=bob,ou=People,dc=synrc,dc=com"
 
 	$ ldapmodify -f t/002-add-exists.ldif 
-	  	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+	$ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
-	adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
-	ldap_add: Already exists (68)
+        adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
+        ldap_add: Already exists (68)
 
 Modify DN
 ---------
-    	$ ldapmodify -f t/007-modify-dn.ldif 
-	  	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        $ ldapmodify -f t/007-modify-dn.ldif 
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
-	modifying rdn of entry "cn=alice,ou=People,dc=synrc,dc=com"
+        modifying rdn of entry "cn=alice,ou=People,dc=synrc,dc=com"

@@ -60,6 +60,7 @@ Add
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret	
 
         adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
+
         adding new entry "cn=bob,ou=People,dc=synrc,dc=com"
 
         $ ldapmodify -f t/002-add-exists.ldif 
@@ -67,6 +68,22 @@ Add
 
         adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
         ldap_add: Already exists (68)
+
+
+Delete
+------
+        $ ldapmodify -f t/008-delete.ldif 
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        deleting entry "uid=alice,ou=People,dc=synrc,dc=com"
+
+        deleting entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+        $ ldapmodify -f t/009-delete-noobj.ldif
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        deleting entry "cn=alice,ou=People,dc=synrc,dc=com"
+        ldap_delete: No such object (32)
 
 Modify DN
 ---------

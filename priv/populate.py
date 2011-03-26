@@ -31,3 +31,4 @@ if __name__ == '__main__':
         ldif = open(sys.argv[1], "r")
         conn = pymongo.connection.Connection()
         conn['eds']['root'].insert([item for item in ldif_parser(ldif)])
+        conn['eds']['root'].ensure_index('_rdn')

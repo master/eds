@@ -1,7 +1,3 @@
-# supportedSASLMechanisms: PLAIN
-# supportedSASLMechanisms: DIGEST-MD5
-# supportedSASLMechanisms: CRAM-MD5
-
 dn: dc=synrc,dc=com
 dc: synrc
 objectClass: top

@@ -58,10 +58,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
-    Attrs = lists:flatten(
-	      lists:map(fun(I) -> 
-				item_to_attribute(I) 
-			end, Item)),
+    Attrs = lists:flatten(lists:map(fun(I) -> item_to_attribute(I) end, Item)),
     {value, {_, "dn", [DN]}, PartialAttrs} = lists:keytake("dn", 2, Attrs),
     Entry = {'SearchResultEntry', DN, PartialAttrs},
     ldap_fsm:reply(From, {{searchResEntry, Entry}, MessageID}),
@@ -84,8 +81,16 @@ modify_dn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
     end.	
 
 %% @doc @todo
-add(_BindDN,_DN,_Attributes) ->
-    success.
+add(_BindDN, DN, Attrs) ->
+    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+	[_Entry] -> entryAlreadyExists;
+	[] ->
+	    Entry = lists:map(fun(A) -> attribute_to_item(A) end, Attrs),
+	    AddDN = object_insert(<<"dn">>, DN, Entry),
+	    NewEntry = object_insert(<<"_rdn">>, rdn(DN), AddDN),	    
+	    Response = emongo:insert_sync(eds, ?COLL, NewEntry),
+	    parse_response(Response)
+    end.
 
 %% @doc @todo
 parse_response([Response]) ->
@@ -111,6 +116,16 @@ object_get(Key, Entry) when is_bitstring(Key) ->
     element(2, lists:keyfind(Key, 1, Entry)).
 
 %% @doc @todo
+object_insert(Key, Value, Entry) when is_list(Key) ->
+    object_insert(list_to_bitstring(Key), Value, Entry);
+object_insert(Key, Value, Entry) when is_bitstring(Key),
+				      is_list(Value) ->
+    object_insert(Key, list_to_bitstring(Value), Entry);
+object_insert(Key, Value, Entry) when is_bitstring(Key),
+				      is_bitstring(Value) ->
+    [{Key, Value} | Entry].
+
+%% @doc @todo
 rdn(DN) ->
     lists:reverse(DN).
 
@@ -131,10 +146,10 @@ item_to_attribute({Name, {array, Value}}) when is_bitstring(Name),
 %% @doc @todo
 attribute_to_item({'PartialAttribute', Name, [Value]}) when is_list(Name),
 							    is_list(Value) ->
-    {Name, Value};
+    {list_to_bitstring(Name), list_to_bitstring(Value)};
 attribute_to_item({'PartialAttribute', Name, Value}) when is_list(Name),
 							  is_list(Value) ->
-    {Name, {array, Value}}.
+    {list_to_bitstring(Name), {array, [list_to_bitstring(V) || V <- Value]}}.
 
 handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, State) ->
     {'BindRequest',_, BindDN, Creds} = Options,

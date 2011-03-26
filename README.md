@@ -1,11 +1,9 @@
 README
 ======
-
-Rudimentary [LDAP](http://en.wikipedia.org/wiki/LDAP) server with [MongoDB](http://www.mongodb.org/) backend.
+Erland Directory Server is an [LDAP](http://en.wikipedia.org/wiki/LDAP) server with [MongoDB](http://www.mongodb.org/) backend.
 
 INSTALL
 =======
-
 Compile eMongo driver first:
 
         $ git clone git://github.com/master/emongo.git emongo
@@ -26,7 +24,6 @@ Populate database with sample LDIF:
 
 USAGE
 =====
-
         $ ./eds.sh
 
 LDAP port is 1389 by default. Anonymous bind is unsupported. Still server is pretty usable:

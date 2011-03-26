@@ -93,6 +93,15 @@ add(_BindDN, DN, Attrs) ->
     end.
 
 %% @doc @todo
+delete(_BindDN, DN) ->
+    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+	[] -> noSuchObject;
+	[_Entry] ->
+	    Response = emongo:delete_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}]),
+	    parse_response(Response)
+    end.    
+
+%% @doc @todo
 parse_response([Response]) ->
     case lists:keyfind(<<"err">>, 1, Response) of
 	{<<"err">>, undefined} -> success;
@@ -178,8 +187,11 @@ handle_cast({{addRequest, Options}, MessageID, BindDN, From}, State) ->
     ldap_fsm:reply(From, {{addResponse, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{delRequest, Options},_MessageID,_BindDN,_From}, State) ->
-    io:format("-> ~p~n", [Options]),
+handle_cast({{delRequest, Options}, MessageID, BindDN, From}, State) ->
+    DN = Options,
+    Result = delete(BindDN, DN),
+    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
+    ldap_fsm:reply(From, {{delResponse, Response}, MessageID}),
     {stop, normal, State};
 
 handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, State) ->

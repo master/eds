@@ -79,11 +79,8 @@ modify_dn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
 	    NewDN = NewRDN ++ BaseDN,	   
 	    ModDN = object_modify(<<"dn">>, NewDN, Entry),
 	    NewEntry = object_modify(<<"_rdn">>, rdn(NewDN), ModDN),
-	    [Res] = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
-	    case lists:keyfind(<<"err">>, 1, Res) of
-		{<<"err">>, undefined} -> success;
-		_Else -> protocolError
-	    end
+	    Response = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
+	    parse_response(Response)
     end.	
 
 %% @doc @todo

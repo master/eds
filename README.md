@@ -111,8 +111,8 @@ Changing nonexistent object:
         $ ldapmodify -f t/007-modify-noobj.ldif
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
-        modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
-
+        modifying entry "cn=eve,ou=People,dc=synrc,dc=com"
+        ldap_modify: No such object (32)
 
 Modify DN
 ---------

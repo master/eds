@@ -1,0 +1,6 @@
+*.swp
+*~
+/ebin/*.beam
+/ebin/LDAP.hrl
+/ebin/LDAP.asn1db
+/ebin/LDAP.erl

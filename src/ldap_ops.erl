@@ -174,7 +174,7 @@ object_insert(Key, Value, Entry) when is_bitstring(Key),
 %%       Key -> list() | bitstring()
 %%       Entry -> list()
 object_delete(Key, Entry) when is_list(Key) ->
-    object_get(list_to_bitstring(Key), Entry);
+    object_delete(list_to_bitstring(Key), Entry);
 object_delete(Key, Entry) when is_bitstring(Key) ->
     lists:keydelete(Key, 1, Entry).
 

@@ -77,31 +77,65 @@ Adding duplicate entries:
 
 Modify
 ------
-003-modify-replace.ldif 
-modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
+
+Replacing value of an attribute:
+
+        $ ldapmodify -f t/003-modify-replace.ldif 
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
+
+Adding new attribute:
+
+        $ ldapmodify -f t/004-modify-add.ldif
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
+
+Deleting an attribute:
+
+        $ ldapmodify -f t/005-modify-del.ldif
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+Changing many attributes at once:
+
+        $ ldapmodify -f t/006-modify-multi.ldif
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+Changing nonexistent object:
+
+        $ ldapmodify -f t/007-modify-noobj.ldif
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+
+Modify DN
+---------
+        $ ldapmodify -f t/008-modify-dn.ldif 
+        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+
+        modifying rdn of entry "cn=alice,ou=People,dc=synrc,dc=com"
 
 Delete
 ------
 Deleting entries:
 
-        $ ldapmodify -f t/008-delete.ldif 
+        $ ldapmodify -f t/009-delete.ldif 
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         deleting entry "uid=alice,ou=People,dc=synrc,dc=com"
 
         deleting entry "cn=bob,ou=People,dc=synrc,dc=com"
 
-Nonexisten entries:
+Deleting nonexistent entries:
 
-        $ ldapmodify -f t/009-delete-noobj.ldif
+        $ ldapmodify -f t/010-delete-noobj.ldif
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         deleting entry "cn=alice,ou=People,dc=synrc,dc=com"
         ldap_delete: No such object (32)
-
-Modify DN
----------
-        $ ldapmodify -f t/007-modify-dn.ldif 
-        $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
-
-        modifying rdn of entry "cn=alice,ou=People,dc=synrc,dc=com"

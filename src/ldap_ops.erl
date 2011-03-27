@@ -20,11 +20,12 @@ start_link() ->
 init(_) ->
     {ok, {}}.
 
-%% @doc @todo
+%% @doc Dispatch a message to an ldap_ops worker. From is a Pid of a message sender (used for reply).
+%% @spec dispatch(Pid, ProtocolOp, MessageID, BindDN, From) -> ok
 dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
-%% @doc @todo
+%% @doc Process BindRequest
 bind(BindDN, {simple, Password}) ->
     Filter = {equalityMatch, 
 	      {'AttributeValueAssertion', "userPassword", Password}},
@@ -32,7 +33,7 @@ bind(BindDN, {simple, Password}) ->
 bind(_BindDN,_Creds) ->
     authMethodNotSupported.
 
-%% @doc @todo
+%% @doc Process a reply from bind/2 and notify FSM on new BindDN if required.
 bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
     BindResult;
 bind_reply(_From, [],_MessageID) ->
@@ -42,7 +43,7 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     ldap_fsm:set_bind(From, BindDN),
     success.
 
-%% @doc @todo
+%% @doc Process SearchRequest
 search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes) ->
     insufficientAccessRights;
 search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
@@ -54,7 +55,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
 		    ScopeFilter ++ EntryFilter,
 		    FieldsOption ++ LimitOption).
 
-%% @doc @todo
+%% @doc Process a reply from search/6, send result entries to FSM if required.
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
@@ -66,7 +67,7 @@ search_reply(From, [Item|Result], MessageID) ->
 search_reply(_From, [],_MessageID) ->
     success.
 
-%% @doc @todo
+%% @doc Process ModifyDNRequest
 modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -80,7 +81,7 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
 	    parse_response(Response)
     end.	
 
-%% @doc @todo
+%% @doc Process AddRequest
 add(_BindDN, DN, Attrs) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
@@ -92,7 +93,7 @@ add(_BindDN, DN, Attrs) ->
 	    parse_response(Response)
     end.
 
-%% @doc @todo
+%% @doc Process DelRequest
 delete(_BindDN, DN) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -101,7 +102,7 @@ delete(_BindDN, DN) ->
 	    parse_response(Response)
     end.    
 
-%% @doc @todo
+%% @doc Process ModifyRequest
 modify(_BindDN, DN, Attrs) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -111,7 +112,7 @@ modify(_BindDN, DN, Attrs) ->
 	    parse_response(Response)
     end.    
 
-%% @doc @todo
+%% @doc Apply ModifyRequest change atoms to an object
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
     {Key, Value} = attribute_to_item(Change),
     object_insert(Key, Value, Entry);
@@ -122,14 +123,18 @@ modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
     {Key,_Value} = attribute_to_item(Change),
     object_delete(Key, Entry).
 
-%% @doc @todo
+%% @doc Parse eMongo response code
 parse_response([Response]) ->
     case lists:keyfind(<<"err">>, 1, Response) of
 	{<<"err">>, undefined} -> success;
 	_Else -> protocolError
     end.
 
-%% @doc @todo
+%% @doc Replace an attribute:value pair in an LDAP object
+%% @spec object_modify(Key, Value, Entry) -> Entry
+%%       Key -> list() | bitstring()
+%%       Value -> list() | bitstring() | tuple()
+%%       Entry -> list()
 object_modify(Key, Value, Entry) when is_list(Key) ->
     object_modify(list_to_bitstring(Key), Value, Entry);
 object_modify(Key, Value, Entry) when is_bitstring(Key),
@@ -140,13 +145,20 @@ object_modify(Key, Value, Entry) when is_bitstring(Key),
 				      is_tuple(Value) ->
     lists:keyreplace(Key, 1, Entry, {Key, Value}).
 
-%% @doc @todo
+%% @doc Get an attribute:value pair from an LDAP object
+%% @spec object_get(Key, Entry) -> Item | false
+%%       Key -> list() | bitstring()
+%%       Item -> tuple()
 object_get(Key, Entry) when is_list(Key) ->
     object_get(list_to_bitstring(Key), Entry);
 object_get(Key, Entry) when is_bitstring(Key) ->
     element(2, lists:keyfind(Key, 1, Entry)).
 
-%% @doc @todo
+%% @doc Insert a new attribute:value pair into an LDAP object
+%% @spec object_insert(Key, Value, Entry) -> Entry
+%%       Key -> list() | bitstring()
+%%       Value -> list() | bitstring() | tuple()
+%%       Entry -> list()
 object_insert(Key, Value, Entry) when is_list(Key) ->
     object_insert(list_to_bitstring(Key), Value, Entry);
 object_insert(Key, Value, Entry) when is_bitstring(Key),
@@ -157,17 +169,22 @@ object_insert(Key, Value, Entry) when is_bitstring(Key),
 				      is_tuple(Value) ->
     [{Key, Value} | Entry].
 
-%% @doc @todo
+%% @doc Delete an attribute:value pair from an LDAP object
+%% @spec object_delete(Key, Entry) -> Entry
+%%       Key -> list() | bitstring()
+%%       Entry -> list()
 object_delete(Key, Entry) when is_list(Key) ->
     object_get(list_to_bitstring(Key), Entry);
 object_delete(Key, Entry) when is_bitstring(Key) ->
     lists:keydelete(Key, 1, Entry).
 
-%% @doc @todo
+%% @doc Create a reveresed DN from a DN
+%% @spec rdn(DN) -> DN
+%%       DN -> list()
 rdn(DN) ->
     lists:reverse(DN).
 
-%% @doc @todo
+%% @doc Convert eMongo item representation into a PartialAttribute
 item_to_attribute({_Name, {oid, _}}) ->
     [];
 item_to_attribute({<<"_rdn">>,_}) ->
@@ -181,7 +198,7 @@ item_to_attribute({Name, {array, Value}}) when is_bitstring(Name),
 		      {'PartialAttribute', bitstring_to_list(Name), [bitstring_to_list(V)]}
 	      end, Value).
 
-%% @doc @todo
+%% @doc Convert a PartialAttribute representation into an eMongo item
 attribute_to_item({'PartialAttribute', Name, [Value]}) when is_list(Name),
 							    is_list(Value) ->
     {list_to_bitstring(Name), list_to_bitstring(Value)};

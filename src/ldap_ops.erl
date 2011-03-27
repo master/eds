@@ -130,14 +130,15 @@ parse_response([Response]) ->
     end.
 
 %% @doc @todo
-object_modify(Key, NewValue, Entry) when is_list(Key) ->
-    object_modify(list_to_bitstring(Key), NewValue, Entry);
-object_modify(Key, NewValue, Entry) when is_bitstring(Key),
-					 is_list(NewValue) ->
-    object_modify(Key, list_to_bitstring(NewValue), Entry);
-object_modify(Key, NewValue, Entry) when is_bitstring(Key),
-					 is_bitstring(NewValue) ->
-    lists:keyreplace(Key, 1, Entry, {Key, NewValue}).
+object_modify(Key, Value, Entry) when is_list(Key) ->
+    object_modify(list_to_bitstring(Key), Value, Entry);
+object_modify(Key, Value, Entry) when is_bitstring(Key),
+				      is_list(Value) ->
+    object_modify(Key, list_to_bitstring(Value), Entry);
+object_modify(Key, Value, Entry) when is_bitstring(Key),
+				      is_bitstring(Value) orelse 
+				      is_tuple(Value) ->
+    lists:keyreplace(Key, 1, Entry, {Key, Value}).
 
 %% @doc @todo
 object_get(Key, Entry) when is_list(Key) ->
@@ -152,7 +153,8 @@ object_insert(Key, Value, Entry) when is_bitstring(Key),
 				      is_list(Value) ->
     object_insert(Key, list_to_bitstring(Value), Entry);
 object_insert(Key, Value, Entry) when is_bitstring(Key),
-				      is_bitstring(Value) ->
+				      is_bitstring(Value) orelse
+				      is_tuple(Value) ->
     [{Key, Value} | Entry].
 
 %% @doc @todo

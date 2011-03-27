@@ -56,12 +56,17 @@ Size limit on query result:
 
 Add
 ---
+
+Adding entries:
+
         $ ldapmodify -f t/001-add.ldif 
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret	
 
         adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
 
         adding new entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+Adding duplicate entries:
 
         $ ldapmodify -f t/002-add-exists.ldif 
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
@@ -70,14 +75,23 @@ Add
         ldap_add: Already exists (68)
 
 
+Modify
+------
+003-modify-replace.ldif 
+modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
+
 Delete
 ------
+Deleting entries:
+
         $ ldapmodify -f t/008-delete.ldif 
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         deleting entry "uid=alice,ou=People,dc=synrc,dc=com"
 
         deleting entry "cn=bob,ou=People,dc=synrc,dc=com"
+
+Nonexisten entries:
 
         $ ldapmodify -f t/009-delete-noobj.ldif
         $ 	     -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret

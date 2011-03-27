@@ -67,7 +67,7 @@ search_reply(_From, [],_MessageID) ->
     success.
 
 %% @doc @todo
-modify_dn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
+modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
@@ -106,8 +106,21 @@ modify(_BindDN, DN, Attrs) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
-	    success
+	    NewEntry = lists:foldl(fun(C, E) -> modify_apply(C, E) end, Entry, Attrs),
+	    Response = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
+	    parse_response(Response)
     end.    
+
+%% @doc @todo
+modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
+    {Key, Value} = attribute_to_item(Change),
+    object_insert(Key, Value, Entry);
+modify_apply({'ModifyRequest_changes_SEQOF', replace, Change}, Entry) ->
+    {Key, Value} = attribute_to_item(Change),
+    object_modify(Key, Value, Entry);
+modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
+    {Key,_Value} = attribute_to_item(Change),
+    object_delete(Key, Entry).
 
 %% @doc @todo
 parse_response([Response]) ->
@@ -191,7 +204,7 @@ handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, State) ->
     {stop, normal, State};
 
 handle_cast({{modifyRequest, Options}, MessageID, BindDN, From}, State) ->
-    {'AddRequest', DN, Attributes} = Options,
+    {'ModifyRequest', DN, Attributes} = Options,
     Result = modify(BindDN, DN, Attributes),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{modifyResponse, Response}, MessageID}),
@@ -213,7 +226,7 @@ handle_cast({{delRequest, Options}, MessageID, BindDN, From}, State) ->
 
 handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, State) ->
     {'ModifyDNRequest', DN, NewRDN, DeleteOldRDN,_} = Options,
-    Result = modify_dn(BindDN, DN, NewRDN, DeleteOldRDN),
+    Result = modifydn(BindDN, DN, NewRDN, DeleteOldRDN),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{modDNResponse, Response}, MessageID}),    
     {stop, normal, State};

@@ -13,7 +13,7 @@ compile_all([], Acc) ->
 compile(Tokens) when is_list(Tokens) -> compile_all(Tokens, []);
 
 compile({'and', Arg}) -> lists:flatten(compile(Arg));
-compile({'or', Arg}) -> [{<<"$or">>, [compile(Arg)]}];
+compile({'or', Arg}) -> [{<<"$or">>, compile(Arg)}];
 compile({'not', Arg}) -> [{<<"$not">>, compile(Arg)}];
 
 compile({equalityMatch, {_, Arg1, Arg2}}) -> [{Arg1, Arg2}];

@@ -16,8 +16,6 @@
 
 -define(TIMEOUT, 120000).
 
--include("LDAP.hrl").
-
 start_link() ->
     gen_fsm:start_link(?MODULE, [], []).
 
@@ -65,7 +63,7 @@ read({in, {ProtocolOp, MessageID}}, #state{ops=Ops, binddn=BindDN} = State) ->
     {next_state, read, State#state{ops=NewOps}, ?TIMEOUT};
 
 read({out, Message}, #state{socket=S} = State) ->
-    Bytes = list_to_binary(encode(Message)),
+    Bytes = list_to_binary(ldap_msg:encode(Message)),
     gen_tcp:send(S, Bytes),
     {next_state, read, State, ?TIMEOUT};
 
@@ -76,20 +74,6 @@ read(timeout, State) ->
 read(_Data,  State) ->
     {stop, normal, State}.
 
-decode(Envelope) ->
-    case asn1rt:decode('LDAP', 'LDAPMessage', Envelope) of
-        {ok, {'LDAPMessage', MessageID, ProtocolOp,_}} ->
-	    {ProtocolOp, MessageID};
-	Error -> {error_decoding, Error}
-    end.
-
-encode({ProtocolOp, MessageID}) when is_tuple(ProtocolOp), is_integer(MessageID) ->
-    Message = #'LDAPMessage'{messageID = MessageID, protocolOp = ProtocolOp},
-    case asn1rt:encode('LDAP', 'LDAPMessage', Message) of
-        {ok, Envelope} -> Envelope;
-        Error -> {error_encoding, Error}
-    end.
-
 handle_event(Event, StateName, State) ->
     {stop, {StateName, undefined_event, Event}, State}.
 
@@ -98,7 +82,7 @@ handle_sync_event(Event, _From, StateName, State) ->
 
 handle_info({tcp, S, Bin}, StateName, #state{socket=S} = State) ->
     inet:setopts(S, [{active, once}]),
-    ?MODULE:StateName({in, decode(Bin)}, State);
+    ?MODULE:StateName({in, ldap_msg:decode(Bin)}, State);
 
 handle_info({tcp_closed,_S}, _StateName, State) ->
     {stop, normal, State};

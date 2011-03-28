@@ -3,8 +3,10 @@
 
 -module(ldap_obj).
 
--export([modify/3, select/2, insert/3, delete/2,
+-export([modify/3, get/2, insert/3, delete/2,
 	to_attr/1, to_record/1]).
+
+-compile({no_auto_import,[get/1]}).
 
 %% @doc Replace an attribute:value pair in an LDAP object
 %% @spec modify(Key, Value, Object) -> Object
@@ -25,9 +27,9 @@ modify(Key, Value, Object) when is_bitstring(Key),
 %% @spec get(Key, Object) -> Item | false
 %%       Key -> list() | bitstring()
 %%       Item -> tuple()
-select(Key, Object) when is_list(Key) ->
-    select(list_to_bitstring(Key), Object);
-select(Key, Object) when is_bitstring(Key) ->
+get(Key, Object) when is_list(Key) ->
+    get(list_to_bitstring(Key), Object);
+get(Key, Object) when is_bitstring(Key) ->
     element(2, lists:keyfind(Key, 1, Object)).
 
 %% @doc Insert a new attribute:value pair into an LDAP object

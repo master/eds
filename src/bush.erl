@@ -5,10 +5,8 @@
 
 -module(bush).
 
--export([init/0, insert/3, 
-	 lookup_k/2, lookup_v/2, 
-	 take_k/2, take_v/2,
-	 delete_k/2, delete_v/2]).
+-export([init/0, insert/3, lookup_k/2, lookup_v/2, 
+	 take_k/2, take_v/2, delete_k/2, delete_v/2]).
 
 %% @doc Create an empty bush
 %% @spec init() -> Bush

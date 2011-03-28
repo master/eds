@@ -39,7 +39,7 @@ bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
 bind_reply(_From, [],_MessageID) ->
     invalidCredentials;
 bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
-    BindDN = bitstring_to_list(object_get("dn", BindResult)),
+    BindDN = bitstring_to_list(ldap_obj:get("dn", BindResult)),
     ldap_fsm:set_bind(From, BindDN),
     success.
 
@@ -72,11 +72,11 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
-	    OldDN = bitstring_to_list(object_get(<<"dn">>, Entry)),
+	    OldDN = bitstring_to_list(ldap_obj:get(<<"dn">>, Entry)),
 	    BaseDN = lists:dropwhile(fun(C) -> C =/= $, end, OldDN),
 	    NewDN = NewRDN ++ BaseDN,	   
-	    ModDN = object_modify(<<"dn">>, NewDN, Entry),
-	    NewEntry = object_modify(<<"_rdn">>, rdn(NewDN), ModDN),
+	    ModDN = ldap_obj:modify(<<"dn">>, NewDN, Entry),
+	    NewEntry = ldap_obj:modify(<<"_rdn">>, rdn(NewDN), ModDN),
 	    Response = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
 	    parse_response(Response)
     end.	
@@ -87,8 +87,8 @@ add(_BindDN, DN, Attrs) ->
 	[_Entry] -> entryAlreadyExists;
 	[] ->
 	    Entry = lists:map(fun(A) -> attribute_to_item(A) end, Attrs),
-	    AddDN = object_insert(<<"dn">>, DN, Entry),
-	    NewEntry = object_insert(<<"_rdn">>, rdn(DN), AddDN),	    
+	    AddDN = ldap_obj:insert(<<"dn">>, DN, Entry),
+	    NewEntry = ldap_obj:insert(<<"_rdn">>, rdn(DN), AddDN),	    
 	    Response = emongo:insert_sync(eds, ?COLL, NewEntry),
 	    parse_response(Response)
     end.
@@ -115,13 +115,13 @@ modify(_BindDN, DN, Attrs) ->
 %% @doc Apply ModifyRequest change atoms to an object
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
     {Key, Value} = attribute_to_item(Change),
-    object_insert(Key, Value, Entry);
+    ldap_obj:insert(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', replace, Change}, Entry) ->
     {Key, Value} = attribute_to_item(Change),
-    object_modify(Key, Value, Entry);
+    ldap_obj:modify(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
     {Key,_Value} = attribute_to_item(Change),
-    object_delete(Key, Entry).
+    ldap_obj:delete(Key, Entry).
 
 %% @doc Parse eMongo response code
 parse_response([Response]) ->
@@ -129,54 +129,6 @@ parse_response([Response]) ->
 	{<<"err">>, undefined} -> success;
 	_Else -> protocolError
     end.
-
-%% @doc Replace an attribute:value pair in an LDAP object
-%% @spec object_modify(Key, Value, Entry) -> Entry
-%%       Key -> list() | bitstring()
-%%       Value -> list() | bitstring() | tuple()
-%%       Entry -> list()
-object_modify(Key, Value, Entry) when is_list(Key) ->
-    object_modify(list_to_bitstring(Key), Value, Entry);
-object_modify(Key, Value, Entry) when is_bitstring(Key),
-				      is_list(Value) ->
-    object_modify(Key, list_to_bitstring(Value), Entry);
-object_modify(Key, Value, Entry) when is_bitstring(Key),
-				      is_bitstring(Value) orelse 
-				      is_tuple(Value) ->
-    lists:keyreplace(Key, 1, Entry, {Key, Value}).
-
-%% @doc Get an attribute:value pair from an LDAP object
-%% @spec object_get(Key, Entry) -> Item | false
-%%       Key -> list() | bitstring()
-%%       Item -> tuple()
-object_get(Key, Entry) when is_list(Key) ->
-    object_get(list_to_bitstring(Key), Entry);
-object_get(Key, Entry) when is_bitstring(Key) ->
-    element(2, lists:keyfind(Key, 1, Entry)).
-
-%% @doc Insert a new attribute:value pair into an LDAP object
-%% @spec object_insert(Key, Value, Entry) -> Entry
-%%       Key -> list() | bitstring()
-%%       Value -> list() | bitstring() | tuple()
-%%       Entry -> list()
-object_insert(Key, Value, Entry) when is_list(Key) ->
-    object_insert(list_to_bitstring(Key), Value, Entry);
-object_insert(Key, Value, Entry) when is_bitstring(Key),
-				      is_list(Value) ->
-    object_insert(Key, list_to_bitstring(Value), Entry);
-object_insert(Key, Value, Entry) when is_bitstring(Key),
-				      is_bitstring(Value) orelse
-				      is_tuple(Value) ->
-    [{Key, Value} | Entry].
-
-%% @doc Delete an attribute:value pair from an LDAP object
-%% @spec object_delete(Key, Entry) -> Entry
-%%       Key -> list() | bitstring()
-%%       Entry -> list()
-object_delete(Key, Entry) when is_list(Key) ->
-    object_delete(list_to_bitstring(Key), Entry);
-object_delete(Key, Entry) when is_bitstring(Key) ->
-    lists:keydelete(Key, 1, Entry).
 
 %% @doc Create a reveresed DN from a DN
 %% @spec rdn(DN) -> DN

@@ -59,7 +59,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
-    Attrs = lists:flatten(lists:map(fun(I) -> item_to_attribute(I) end, Item)),
+    Attrs = lists:flatten(lists:map(fun(I) -> ldap_obj:to_attr(I) end, Item)),
     {value, {_, "dn", [DN]}, PartialAttrs} = lists:keytake("dn", 2, Attrs),
     Entry = {'SearchResultEntry', DN, PartialAttrs},
     ldap_fsm:reply(From, {{searchResEntry, Entry}, MessageID}),
@@ -86,7 +86,7 @@ add(_BindDN, DN, Attrs) ->
     case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
 	[] ->
-	    Entry = lists:map(fun(A) -> attribute_to_item(A) end, Attrs),
+	    Entry = lists:map(fun(A) -> ldap_obj:to_record(A) end, Attrs),
 	    AddDN = ldap_obj:insert(<<"dn">>, DN, Entry),
 	    NewEntry = ldap_obj:insert(<<"_rdn">>, rdn(DN), AddDN),	    
 	    Response = emongo:insert_sync(eds, ?COLL, NewEntry),
@@ -114,13 +114,13 @@ modify(_BindDN, DN, Attrs) ->
 
 %% @doc Apply ModifyRequest change atoms to an object
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
-    {Key, Value} = attribute_to_item(Change),
+    {Key, Value} = ldap_obj:to_record(Change),
     ldap_obj:insert(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', replace, Change}, Entry) ->
-    {Key, Value} = attribute_to_item(Change),
+    {Key, Value} = ldap_obj:to_record(Change),
     ldap_obj:modify(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
-    {Key,_Value} = attribute_to_item(Change),
+    {Key,_Value} = ldap_obj:to_record(Change),
     ldap_obj:delete(Key, Entry).
 
 %% @doc Parse eMongo response code
@@ -135,28 +135,6 @@ parse_response([Response]) ->
 %%       DN -> list()
 rdn(DN) ->
     lists:reverse(DN).
-
-%% @doc Convert eMongo item representation into a PartialAttribute
-item_to_attribute({_Name, {oid, _}}) ->
-    [];
-item_to_attribute({<<"_rdn">>,_}) ->
-    [];
-item_to_attribute({Name, Value}) when is_bitstring(Name),
-				      is_bitstring(Value) ->
-    {'PartialAttribute', bitstring_to_list(Name), [bitstring_to_list(Value)]};
-item_to_attribute({Name, {array, Value}}) when is_bitstring(Name), 
-					       is_list(Value) ->
-    lists:map(fun(V) -> 
-		      {'PartialAttribute', bitstring_to_list(Name), [bitstring_to_list(V)]}
-	      end, Value).
-
-%% @doc Convert a PartialAttribute representation into an eMongo item
-attribute_to_item({'PartialAttribute', Name, [Value]}) when is_list(Name),
-							    is_list(Value) ->
-    {list_to_bitstring(Name), list_to_bitstring(Value)};
-attribute_to_item({'PartialAttribute', Name, Value}) when is_list(Name),
-							  is_list(Value) ->
-    {list_to_bitstring(Name), {array, [list_to_bitstring(V) || V <- Value]}}.
 
 handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, State) ->
     {'BindRequest',_, BindDN, Creds} = Options,

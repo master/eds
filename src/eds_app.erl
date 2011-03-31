@@ -12,7 +12,7 @@
 -define(MAX_RESTART, 5).
 -define(MAX_TIME, 60).
 
--define(DEF_LDAP_PORT, 1389).
+-define(DEF_LDAP_PORT, 389).
 -define(DEF_EMONGO_HOST, "localhost").
 -define(DEF_EMONGO_PORT, 27017).
 -define(DEF_EMONGO_DB, "eds").
@@ -77,7 +77,8 @@ init(ops_sup) ->
     {ok, {{simple_one_for_one, ?MAX_RESTART, ?MAX_TIME}, [Ops]}}.
 
 get_app_env(Opt, Default) ->
-    case application:get_env(application:get_application(), Opt) of
+    {ok, App} = application:get_application(),
+    case application:get_env(App, Opt) of
 	{ok, Val} -> Val;
 	_ ->
 	    case init:get_argument(Opt) of

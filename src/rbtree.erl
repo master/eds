@@ -5,12 +5,13 @@
 -module(rbtree).
 -export([insert/3, delete/2, lookup/2, issane/1]).
 
--define(IS_BLACK(Tree), ((Tree =:= {}) orelse (element(3, Tree) =:= b))).
-
 -type rb() :: r | b.
--type tree(K) :: {} | {K, term(), rb(), 
-		       Left::tree(K), 
-		       Right::tree(K)}.
+-type tree(K) :: {} | {K, term(), rb(), Left::tree(K), Right::tree(K)}.
+-type tree() :: {} | {term(), term(), rb(), Left::tree(), Right::tree()}.
+
+-export_type([tree/0, tree/1]).
+
+-define(IS_BLACK(Tree), ((Tree =:= {}) orelse (element(3, Tree) =:= b))).
 
 %% @doc Inserts a new node into the tree
 -spec insert(K, term(), tree(K)) -> tree(K).

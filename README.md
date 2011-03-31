@@ -32,7 +32,7 @@ USAGE
 =====
         $ ./eds.sh
 
-LDAP port is 1389 by default. Anonymous bind is unsupported.
+LDAP port is 1389 for testing purposes. Anonymous bind is not supported (yet).
 
 Search
 ------
@@ -139,3 +139,11 @@ Deleting nonexistent entries:
 
         deleting entry "cn=alice,ou=People,dc=synrc,dc=com"
         ldap_delete: No such object (32)
+
+Compare
+-------
+Evaluating an expression:
+
+        $ ldapcompare "uid=admin,dc=synrc,dc=com" uid:admin \
+                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
+        TRUE

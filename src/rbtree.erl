@@ -3,21 +3,29 @@
 %% Original code by Fuad Tabba (cs.auckland.ac.nz at fuad OR altabba.org at fuad)
 
 -module(rbtree).
--export([insert/3, delete/2, lookup/2, isSane/1]).
+-export([insert/3, delete/2, lookup/2, issane/1]).
 
 -define(IS_BLACK(Tree), ((Tree =:= {}) orelse (element(3, Tree) =:= b))).
 
+-type rb() :: r | b.
+-type tree(K) :: {} | {K, term(), rb(), 
+		       Left::tree(K), 
+		       Right::tree(K)}.
+
 %% @doc Inserts a new node into the tree
+-spec insert(K, term(), tree(K)) -> tree(K).
 insert(Key, Value, Tree) ->
     % Invariant: Root must be black
     makeBlack(ins(Key, Value, Tree)).
 
 %% @doc Removes an existing node from the tree
+-spec delete(K, tree(K)) -> tree(K).
 delete(Key, Tree) ->
     % Invariant: Root must be black
     fakenilfix(makeBlack(del(Key, Tree))).
 
 %% @doc Gets the {Key, Value} tuple corresponding the the key
+-spec lookup(K, tree(K)) -> {} | term().
 lookup(_, {}) ->
     {};
 lookup(Key, {Key, Value, _, _, _}) ->
@@ -135,58 +143,59 @@ max({_, _, _, _, Right}) ->
     max(Right).
 
 %% @doc Performs a sanity check on the tree, check for all the BST and RB invariants
-isSane({}) ->
+-spec issane(tree(term())) -> boolean().
+issane({}) ->
     true;
 % Root must be black
-isSane({_, _, r, _, _}) ->
+issane({_, _, r, _, _}) ->
     false;
-isSane(T) ->
-    checkBSTOrder(T) andalso checkRBProperty(T) andalso (countBlack(T) =/= false).
+issane(T) ->
+    checkbstorder(T) andalso checkrbproperty(T) andalso (countblack(T) =/= false).
 
 %% @doc Check that the binary search tree invariants (ordering) are held
-checkBSTOrder({_, _, _, {}, {}}) ->
+checkbstorder({_, _, _, {}, {}}) ->
     true;
-checkBSTOrder({Key, _, _, {}, Right}) ->
+checkbstorder({Key, _, _, {}, Right}) ->
    {Kr, _, _, _, _} = Right,
-   (Key < Kr) andalso checkBSTOrder(Right);
-checkBSTOrder({Key, _, _, Left, {}}) ->
+   (Key < Kr) andalso checkbstorder(Right);
+checkbstorder({Key, _, _, Left, {}}) ->
    {Kl, _, _, _, _} = Left,
-   (Kl < Key) andalso checkBSTOrder(Left);
-checkBSTOrder({Key, _, _, Left, Right}) ->
+   (Kl < Key) andalso checkbstorder(Left);
+checkbstorder({Key, _, _, Left, Right}) ->
    {Kl, _, _, _, _} = Left,
    {Kr, _, _, _, _} = Right,
-   (Kl < Key) andalso (Key < Kr) andalso checkBSTOrder(Left) andalso checkBSTOrder(Right).
+   (Kl < Key) andalso (Key < Kr) andalso checkbstorder(Left) andalso checkbstorder(Right).
 
 %% @doc Check that there aren't two red nodes in a row.
-checkRBProperty({}) ->
+checkrbproperty({}) ->
     true;
-checkRBProperty({_, _, b, Left, Right}) ->
-    checkRBProperty(Left) andalso checkRBProperty(Right);
-checkRBProperty({_, _, r, Left, Right}) ->
-    checkRBRed(Left) andalso checkRBRed(Right).
+checkrbproperty({_, _, b, Left, Right}) ->
+    checkrbproperty(Left) andalso checkrbproperty(Right);
+checkrbproperty({_, _, r, Left, Right}) ->
+    checkrbred(Left) andalso checkrbred(Right).
 
-checkRBRed({}) ->
+checkrbred({}) ->
     true;
-checkRBRed({_, _, b, Left, Right}) ->
-    checkRBProperty(Left) andalso checkRBProperty(Right);
-checkRBRed({_, _, r, _, _}) ->
+checkrbred({_, _, b, Left, Right}) ->
+    checkrbproperty(Left) andalso checkrbproperty(Right);
+checkrbred({_, _, r, _, _}) ->
     false.
 
 %% @doc Check that the number of black nodes is equal in all paths to the leaves
 % Leaves aren't counted (Even though they are technically black, doesn't matter)
-countBlack({}) ->
+countblack({}) ->
     0;
-countBlack({_, _, b, Left, Right}) ->
-    CountLeft = countBlack(Left),
-    CountRight = countBlack(Right),
+countblack({_, _, b, Left, Right}) ->
+    CountLeft = countblack(Left),
+    CountRight = countblack(Right),
     if
         (CountLeft =:= CountRight) andalso (CountLeft =/= false) ->
             1 + CountLeft;
         true -> false
     end;
-countBlack({_, _, r, Left, Right}) ->
-    CountLeft = countBlack(Left),
-    CountRight = countBlack(Right),
+countblack({_, _, r, Left, Right}) ->
+    CountLeft = countblack(Left),
+    CountRight = countblack(Right),
     if
         (CountLeft =:= CountRight) andalso (CountLeft =/= false) ->
             CountLeft;

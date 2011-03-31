@@ -20,8 +20,7 @@ start_link(Coll) ->
 init([Coll]) ->
     {ok, #state{coll=Coll}}.
 
-%% @doc Dispatch a message to an ldap_ops worker. From is a Pid of a message sender (used for reply).
-%% @spec dispatch(Pid, ProtocolOp, MessageID, BindDN, From) -> ok
+%% @doc Dispatch a message to an ldap_ops worker
 dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
@@ -33,7 +32,7 @@ bind(BindDN, {simple, Password}, Coll) ->
 bind(_BindDN,_Creds,_Coll) ->
     authMethodNotSupported.
 
-%% @doc Process a reply from bind/2 and notify FSM on new BindDN if required.
+%% @doc Process a reply from bind/3 and notify FSM on new BindDN if required
 bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
     BindResult;
 bind_reply(_From, [],_MessageID) ->
@@ -55,7 +54,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
 		    ScopeFilter ++ EntryFilter,
 		    FieldsOption ++ LimitOption).
 
-%% @doc Process a reply from search/6, send result entries to FSM if required.
+%% @doc Process a reply from search/6, send result entries to FSM if required
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
@@ -123,6 +122,16 @@ modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
     {Key,_Value} = ldap_obj:to_record(Change),
     ldap_obj:delete(Key, Entry).
 
+%% @doc Process CompareRequest
+compare(BindDN, BaseDN, Assertion, Coll) ->
+    Filter = {equalityMatch, Assertion},
+    case search(BindDN, BaseDN, baseObject, 1, Filter, [], Coll) of
+	O when is_atom(O) ->
+		  O;
+	[] -> compareFalse;
+	_ -> compareTrue
+    end.
+
 %% @doc Parse eMongo response code
 parse_response([Response]) ->
     case lists:keyfind(<<"err">>, 1, Response) of
@@ -131,8 +140,6 @@ parse_response([Response]) ->
     end.
 
 %% @doc Create a reveresed DN from a DN
-%% @spec rdn(DN) -> DN
-%%       DN -> list()
 rdn(DN) ->
     lists:reverse(DN).
 
@@ -178,6 +185,13 @@ handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll
     Result = modifydn(BindDN, DN, NewRDN, DeleteOldRDN, Coll),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{modDNResponse, Response}, MessageID}),    
+    {stop, normal, State};
+
+handle_cast({{compareRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+    {'CompareRequest', DN, Assertion} = Options,
+    Result = compare(BindDN, DN, Assertion, Coll),
+    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
+    ldap_fsm:reply(From, {{compareResponse, Response}, MessageID}),    
     {stop, normal, State};
 
 handle_cast(Request, State) ->

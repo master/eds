@@ -8,13 +8,12 @@
 -export([init/0, insert/3, lookup_k/2, lookup_v/2, 
 	 take_k/2, take_v/2, delete_k/2, delete_v/2]).
 
--export_type([bush/0, bush/2]).
+-export_type([bush/2]).
 
--type bush() :: {KVTree::rbtree:tree(), VKTree::rbtree:tree()}.
 -type bush(K, V) :: {KVTree::rbtree:tree(K), VKTree::rbtree:tree(V)}.
 
 %% @doc Create an empty bush
--spec init() -> bush().
+-spec init() -> bush(term(), term()).
 init() ->
     {{}, {}}.
 

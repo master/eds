@@ -7,9 +7,8 @@
 
 -type rb() :: r | b.
 -type tree(K) :: {} | {K, term(), rb(), Left::tree(K), Right::tree(K)}.
--type tree() :: {} | {term(), term(), rb(), Left::tree(), Right::tree()}.
 
--export_type([tree/0, tree/1]).
+-export_type([tree/1]).
 
 -define(IS_BLACK(Tree), ((Tree =:= {}) orelse (element(3, Tree) =:= b))).
 

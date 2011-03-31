@@ -5,20 +5,20 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, dispatch/5]).
+-export([start_link/1, dispatch/5]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
 -include("LDAP.hrl").
 
--define(COLL, "root").
+-record(state, {coll}).
 
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+start_link(Coll) ->
+    gen_server:start_link(?MODULE, [Coll], []).
 
-init(_) ->
-    {ok, {}}.
+init([Coll]) ->
+    {ok, #state{coll=Coll}}.
 
 %% @doc Dispatch a message to an ldap_ops worker. From is a Pid of a message sender (used for reply).
 %% @spec dispatch(Pid, ProtocolOp, MessageID, BindDN, From) -> ok
@@ -26,11 +26,11 @@ dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
 %% @doc Process BindRequest
-bind(BindDN, {simple, Password}) ->
+bind(BindDN, {simple, Password}, Coll) ->
     Filter = {equalityMatch, 
 	      {'AttributeValueAssertion', "userPassword", Password}},
-    search(BindDN, BindDN, baseObject, 1, Filter, []);
-bind(_BindDN,_Creds) ->
+    search(BindDN, BindDN, baseObject, 1, Filter, [], Coll);
+bind(_BindDN,_Creds,_Coll) ->
     authMethodNotSupported.
 
 %% @doc Process a reply from bind/2 and notify FSM on new BindDN if required.
@@ -44,14 +44,14 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     success.
 
 %% @doc Process SearchRequest
-search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes) ->
+search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes,_Coll) ->
     insufficientAccessRights;
-search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes) ->
+search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
     ScopeFilter = ldap_filter:scope(BaseObject, Scope),
     EntryFilter = ldap_filter:filter(Filter),
     FieldsOption = ldap_filter:fields(Attributes),
     LimitOption = ldap_filter:limit(SizeLimit),
-    emongo:find_all(eds, ?COLL, 
+    emongo:find_all(eds, Coll, 
 		    ScopeFilter ++ EntryFilter,
 		    FieldsOption ++ LimitOption).
 
@@ -68,8 +68,8 @@ search_reply(_From, [],_MessageID) ->
     success.
 
 %% @doc Process ModifyDNRequest
-modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
-    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
+    case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
 	    OldDN = bitstring_to_list(ldap_obj:get(<<"dn">>, Entry)),
@@ -77,38 +77,38 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN) ->
 	    NewDN = NewRDN ++ BaseDN,	   
 	    ModDN = ldap_obj:modify(<<"dn">>, NewDN, Entry),
 	    NewEntry = ldap_obj:modify(<<"_rdn">>, rdn(NewDN), ModDN),
-	    Response = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
+	    Response = emongo:update_sync(eds, Coll, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
 	    parse_response(Response)
     end.	
 
 %% @doc Process AddRequest
-add(_BindDN, DN, Attrs) ->
-    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+add(_BindDN, DN, Attrs, Coll) ->
+    case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
 	[] ->
 	    Entry = lists:map(fun(A) -> ldap_obj:to_record(A) end, Attrs),
 	    AddDN = ldap_obj:insert(<<"dn">>, DN, Entry),
 	    NewEntry = ldap_obj:insert(<<"_rdn">>, rdn(DN), AddDN),	    
-	    Response = emongo:insert_sync(eds, ?COLL, NewEntry),
+	    Response = emongo:insert_sync(eds, Coll, NewEntry),
 	    parse_response(Response)
     end.
 
 %% @doc Process DelRequest
-delete(_BindDN, DN) ->
-    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+delete(_BindDN, DN, Coll) ->
+    case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[_Entry] ->
-	    Response = emongo:delete_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}]),
+	    Response = emongo:delete_sync(eds, Coll, [{<<"_rdn">>, rdn(DN)}]),
 	    parse_response(Response)
     end.    
 
 %% @doc Process ModifyRequest
-modify(_BindDN, DN, Attrs) ->
-    case emongo:find_one(eds, ?COLL, [{"_rdn", rdn(DN)}]) of
+modify(_BindDN, DN, Attrs, Coll) ->
+    case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
 	    NewEntry = lists:foldl(fun(C, E) -> modify_apply(C, E) end, Entry, Attrs),
-	    Response = emongo:update_sync(eds, ?COLL, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
+	    Response = emongo:update_sync(eds, Coll, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
 	    parse_response(Response)
     end.    
 
@@ -136,46 +136,46 @@ parse_response([Response]) ->
 rdn(DN) ->
     lists:reverse(DN).
 
-handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, State) ->
+handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, #state{coll=Coll} = State) ->
     {'BindRequest',_, BindDN, Creds} = Options,
-    BindResult = bind(BindDN, Creds),
+    BindResult = bind(BindDN, Creds, Coll),
     Result = bind_reply(From, BindResult, MessageID),
     Response = #'BindResponse'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{bindResponse, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, State) ->
+handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
     {'SearchRequest', BaseObject, Scope,_, SizeLimit,_,_, Filter, Attributes} = Options,
-    SearchResult = search(BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes),
+    SearchResult = search(BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll),
     Result = search_reply(From, SearchResult, MessageID),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{searchResDone, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{modifyRequest, Options}, MessageID, BindDN, From}, State) ->
+handle_cast({{modifyRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
     {'ModifyRequest', DN, Attributes} = Options,
-    Result = modify(BindDN, DN, Attributes),
+    Result = modify(BindDN, DN, Attributes, Coll),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{modifyResponse, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{addRequest, Options}, MessageID, BindDN, From}, State) ->
+handle_cast({{addRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
     {'AddRequest', DN, Attributes} = Options,
-    Result = add(BindDN, DN, Attributes),
+    Result = add(BindDN, DN, Attributes, Coll),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{addResponse, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{delRequest, Options}, MessageID, BindDN, From}, State) ->
+handle_cast({{delRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
     DN = Options,
-    Result = delete(BindDN, DN),
+    Result = delete(BindDN, DN, Coll),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{delResponse, Response}, MessageID}),
     {stop, normal, State};
 
-handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, State) ->
+handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
     {'ModifyDNRequest', DN, NewRDN, DeleteOldRDN,_} = Options,
-    Result = modifydn(BindDN, DN, NewRDN, DeleteOldRDN),
+    Result = modifydn(BindDN, DN, NewRDN, DeleteOldRDN, Coll),
     Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
     ldap_fsm:reply(From, {{modDNResponse, Response}, MessageID}),    
     {stop, normal, State};

@@ -17,6 +17,7 @@
 -define(DEF_EMONGO_PORT, 27017).
 -define(DEF_EMONGO_DB, "eds").
 -define(DEF_EMONGO_POOL, 3).
+-define(DEF_EMONGO_COLL, "root").
 
 start_client() ->
     supervisor:start_child(client_sup, []).
@@ -26,9 +27,9 @@ start_ops() ->
 
 start_emongo() ->
     EmongoHost = get_app_env(emongo_host, ?DEF_EMONGO_HOST),
-    EmongoPort = get_app_env(emongo_host, ?DEF_EMONGO_PORT),
-    EmongoDB = get_app_env(emongo_host, ?DEF_EMONGO_DB),
-    EmongoPool = get_app_env(emongo_host, ?DEF_EMONGO_POOL),
+    EmongoPort = get_app_env(emongo_port, ?DEF_EMONGO_PORT),
+    EmongoDB = get_app_env(emongo_db, ?DEF_EMONGO_DB),
+    EmongoPool = get_app_env(emongo_pool, ?DEF_EMONGO_POOL),
     application:start(emongo),
     emongo:add_pool(eds, EmongoHost, EmongoPort, EmongoDB, EmongoPool).
 
@@ -67,9 +68,10 @@ init(client_sup) ->
     {ok, {{simple_one_for_one, ?MAX_RESTART, ?MAX_TIME}, [Client]}};
 
 init(ops_sup) ->
+    EmongoColl = get_app_env(emongo_coll, ?DEF_EMONGO_COLL),
     Ops = {
       undefined, 
-      {ldap_ops, start_link, []},
+      {ldap_ops, start_link, [EmongoColl]},
       temporary, 2000, worker,
       []},
     {ok, {{simple_one_for_one, ?MAX_RESTART, ?MAX_TIME}, [Ops]}}.

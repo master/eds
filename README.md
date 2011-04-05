@@ -59,7 +59,7 @@ Add
 
 Adding entries:
 
-        $ ldapmodify -f t/001-add.ldif \
+        $ ldapmodify -f t/010-add.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret	
 
         adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
@@ -68,7 +68,7 @@ Adding entries:
 
 Adding duplicate entries:
 
-        $ ldapmodify -f t/002-add-exists.ldif \
+        $ ldapmodify -f t/011-add-exists.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         adding new entry "cn=alice,ou=People,dc=synrc,dc=com"
@@ -80,35 +80,35 @@ Modify
 
 Replacing value of an attribute:
 
-        $ ldapmodify -f t/003-modify-replace.ldif \
+        $ ldapmodify -f t/020-modify-replace.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
 
 Adding new attribute:
 
-        $ ldapmodify -f t/004-modify-add.ldif \
+        $ ldapmodify -f t/021-modify-add.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying entry "cn=alice,ou=People,dc=synrc,dc=com"
 
 Deleting an attribute:
 
-        $ ldapmodify -f t/005-modify-del.ldif \
+        $ ldapmodify -f t/022-modify-del.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
 
 Changing many attributes at once:
 
-        $ ldapmodify -f t/006-modify-multi.ldif \
+        $ ldapmodify -f t/023-modify-multi.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying entry "cn=bob,ou=People,dc=synrc,dc=com"
 
 Changing nonexistent object:
 
-        $ ldapmodify -f t/007-modify-noobj.ldif \
+        $ ldapmodify -f t/024-modify-noobj.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying entry "cn=eve,ou=People,dc=synrc,dc=com"
@@ -116,7 +116,7 @@ Changing nonexistent object:
 
 Modify DN
 ---------
-        $ ldapmodify -f t/008-modify-dn.ldif \
+        $ ldapmodify -f t/025-modify-dn.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         modifying rdn of entry "cn=alice,ou=People,dc=synrc,dc=com"
@@ -125,7 +125,7 @@ Delete
 ------
 Deleting entries:
 
-        $ ldapmodify -f t/009-delete.ldif \
+        $ ldapmodify -f t/030-delete.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         deleting entry "uid=alice,ou=People,dc=synrc,dc=com"
@@ -134,7 +134,7 @@ Deleting entries:
 
 Deleting nonexistent entries:
 
-        $ ldapmodify -f t/010-delete-noobj.ldif \
+        $ ldapmodify -f t/031-delete-noobj.ldif \
                      -h localhost -p 1389 -D "uid=admin,dc=synrc,dc=com" -w secret
 
         deleting entry "cn=alice,ou=People,dc=synrc,dc=com"

@@ -63,8 +63,8 @@ delete_v(Value, Bush) ->
 	     rbtree:delete(Value, vk_tree(Bush))}
     end.
 
-%% @doc Drop an item given by its key from a bush. Return new bush or false if no item found.
--spec take_k(K, bush(K, V)) -> false | bush(K, V).
+%% @doc Drop an item given by its key from a bush
+-spec take_k(K, bush(K, V)) -> false | {K, V, bush(K, V)}.
 take_k(Key, Bush) ->
     case lookup_k(Key, Bush) of
 	{} -> false;
@@ -73,8 +73,8 @@ take_k(Key, Bush) ->
 			  rbtree:delete(Value, vk_tree(Bush))}}
     end.
 
-%% @doc Drop an item given by its value from a bush. Return new bush or false if no item found.
--spec take_v(V, bush(K, V)) -> false | bush(K, V).
+%% @doc Drop an item given by its value from a bush
+-spec take_v(V, bush(K, V)) -> false | {V, K, bush(K, V)}.
 take_v(Value, Bush) ->
     case lookup_v(Value, Bush) of
 	{} -> false;

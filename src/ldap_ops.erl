@@ -58,7 +58,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
-    Attrs = lists:flatten(lists:map(fun(I) -> ldap_obj:to_attr(I) end, Item)),
+    Attrs = lists:flatten(lists:map(fun ldap_obj:to_attr/1, Item)),
     {value, {_, "dn", [DN]}, PartialAttrs} = lists:keytake("dn", 2, Attrs),
     Entry = {'SearchResultEntry', DN, PartialAttrs},
     ldap_fsm:reply(From, {{searchResEntry, Entry}, MessageID}),
@@ -85,7 +85,7 @@ add(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
 	[] ->
-	    Entry = lists:map(fun(A) -> ldap_obj:to_record(A) end, Attrs),
+	    Entry = lists:map(fun ldap_obj:to_record/1, Attrs),
 	    AddDN = ldap_obj:insert(<<"dn">>, DN, Entry),
 	    NewEntry = ldap_obj:insert(<<"_rdn">>, rdn(DN), AddDN),	    
 	    Response = emongo:insert_sync(eds, Coll, NewEntry),
@@ -106,7 +106,7 @@ modify(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
-	    NewEntry = lists:foldl(fun(C, E) -> modify_apply(C, E) end, Entry, Attrs),
+	    NewEntry = lists:foldl(fun modify_apply/2, Entry, Attrs),
 	    Response = emongo:update_sync(eds, Coll, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
 	    parse_response(Response)
     end.    

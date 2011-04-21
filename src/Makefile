@@ -3,7 +3,7 @@ SOURCES = $(wildcard *.erl)
 BEAMS = $(addprefix $(OUTDIR)/,LDAP.beam $(SOURCES:.erl=.beam))
 ASN_FLAGS = -bber_bin +optimize +driver
 ASN_OUT = $(addprefix $(OUTDIR)/,LDAP.erl LDAP.asn1db LDAP.hrl)
-EFLAGS += -I $(OUTDIR)
+EFLAGS += -I $(OUTDIR) +warn_missing_spec
 
 all: 	$(BEAMS)
 

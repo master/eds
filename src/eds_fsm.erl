@@ -12,7 +12,7 @@
 
 -export([listen/2, read/2]).
 
--record(state, {socket, addr, ops, binddn}). 
+-record(state, {socket, addr, pool, binddn}). 
 
 -define(TIMEOUT, 120000).
 
@@ -35,7 +35,7 @@ set_bind(Pid, BindDN) when is_pid(Pid)  ->
 -spec init([]) -> {ok, listen, #state{}}.
 init([]) ->
     process_flag(trap_exit, true),
-    {ok, listen, #state{binddn=undefined, ops=bush:init()}}.
+    {ok, listen, #state{binddn=undefined, pool=eds_pool:init()}}.
 
 -spec listen(any(), #state{}) -> {next_state, any(), #state{}}.
 listen({socket_ready, Socket}, State) when is_port(Socket) ->
@@ -51,23 +51,23 @@ listen(Other, State) ->
 read({set_bind, BindDN}, State) ->
     {next_state, read, State#state{binddn=BindDN}, ?TIMEOUT};
 
-read({in, {{abandonRequest, Options},_}}, #state{ops=Ops} = State) ->
+read({in, {{abandonRequest, Options},_}}, #state{pool=Pool} = State) ->
     {'AbandonRequest', MessageID} = Options,
-    case bush:take_k(MessageID, Ops) of
-	{MessageID, Pid, NewOps} -> exit(Pid, 'EXIT');
-	false -> NewOps = Ops
+    case eds_pool:take_k(MessageID, Pool) of
+	{MessageID, Pid, NewPool} -> exit(Pid, 'EXIT');
+	false -> NewPool = Pool
     end,
-    {next_state, read, State#state{ops=NewOps}, ?TIMEOUT};
+    {next_state, read, State#state{pool=NewPool}, ?TIMEOUT};
 
 read({in, {{unbindRequest,_},_}}, State) ->
     {stop, normal, State};
 
-read({in, {ProtocolOp, MessageID}}, #state{ops=Ops, binddn=BindDN} = State) ->
+read({in, {ProtocolOp, MessageID}}, #state{pool=Pool, binddn=BindDN} = State) ->
     {ok, Pid} = eds_app:start_ops(),
-    NewOps = bush:insert(MessageID, Pid, Ops),
+    NewPool = eds_pool:insert(MessageID, Pid, Pool),
     erlang:link(Pid),
     eds_ops:dispatch(Pid, ProtocolOp, MessageID, BindDN, self()),
-    {next_state, read, State#state{ops=NewOps}, ?TIMEOUT};
+    {next_state, read, State#state{pool=NewPool}, ?TIMEOUT};
 
 read({out, Message}, #state{socket=S} = State) ->
     Bytes = list_to_binary(eds_msg:encode(Message)),
@@ -100,9 +100,9 @@ handle_info({tcp_closed,_S}, _StateName, State) ->
 handle_info({bind, BindDN}, StateName, State) ->
     {next_state, StateName, State#state{binddn=BindDN}};
 
-handle_info({'EXIT', Pid,_}, StateName, #state{ops=Ops} = State) ->
-    NewOps = bush:delete_v(Pid, Ops),
-    {next_state, StateName, State#state{ops=NewOps}};
+handle_info({'EXIT', Pid,_}, StateName, #state{pool=Pool} = State) ->
+    NewPool = eds_pool:delete_v(Pid, Pool),
+    {next_state, StateName, State#state{pool=NewPool}};
 
 handle_info(_Info, StateName, State) ->
     {noreply, StateName, State}.

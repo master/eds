@@ -38,7 +38,7 @@ bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
 bind_reply(_From, [],_MessageID) ->
     invalidCredentials;
 bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
-    BindDN = bitstring_to_list(eds_obj:get("dn", BindResult)),
+    BindDN = bitstring_to_list(eds_object:get("dn", BindResult)),
     eds_fsm:set_bind(From, BindDN),
     success.
 
@@ -58,7 +58,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
-    Attrs = lists:flatten(lists:map(fun eds_obj:to_attr/1, Item)),
+    Attrs = lists:flatten(lists:map(fun eds_object:to_attr/1, Item)),
     {value, {_, "dn", [DN]}, PartialAttrs} = lists:keytake("dn", 2, Attrs),
     Entry = {'SearchResultEntry', DN, PartialAttrs},
     eds_fsm:reply(From, {{searchResEntry, Entry}, MessageID}),
@@ -71,11 +71,11 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
 	[Entry] ->
-	    OldDN = bitstring_to_list(eds_obj:get(<<"dn">>, Entry)),
+	    OldDN = bitstring_to_list(eds_object:get(<<"dn">>, Entry)),
 	    BaseDN = lists:dropwhile(fun(C) -> C =/= $, end, OldDN),
 	    NewDN = NewRDN ++ BaseDN,	   
-	    ModDN = eds_obj:modify(<<"dn">>, NewDN, Entry),
-	    NewEntry = eds_obj:modify(<<"_rdn">>, rdn(NewDN), ModDN),
+	    ModDN = eds_object:modify(<<"dn">>, NewDN, Entry),
+	    NewEntry = eds_object:modify(<<"_rdn">>, rdn(NewDN), ModDN),
 	    Response = emongo:update_sync(eds, Coll, [{<<"_rdn">>, rdn(DN)}], NewEntry, false),
 	    parse_response(Response)
     end.	
@@ -85,9 +85,9 @@ add(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
 	[] ->
-	    Entry = lists:map(fun eds_obj:to_record/1, Attrs),
-	    AddDN = eds_obj:insert(<<"dn">>, DN, Entry),
-	    NewEntry = eds_obj:insert(<<"_rdn">>, rdn(DN), AddDN),	    
+	    Entry = lists:map(fun eds_object:to_record/1, Attrs),
+	    AddDN = eds_object:insert(<<"dn">>, DN, Entry),
+	    NewEntry = eds_object:insert(<<"_rdn">>, rdn(DN), AddDN),	    
 	    Response = emongo:insert_sync(eds, Coll, NewEntry),
 	    parse_response(Response)
     end.
@@ -113,14 +113,14 @@ modify(_BindDN, DN, Attrs, Coll) ->
 
 %% @doc Apply ModifyRequest change atoms to an object
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
-    {Key, Value} = eds_obj:to_record(Change),
-    eds_obj:insert(Key, Value, Entry);
+    {Key, Value} = eds_object:to_record(Change),
+    eds_object:insert(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', replace, Change}, Entry) ->
-    {Key, Value} = eds_obj:to_record(Change),
-    eds_obj:modify(Key, Value, Entry);
+    {Key, Value} = eds_object:to_record(Change),
+    eds_object:modify(Key, Value, Entry);
 modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
-    {Key,_Value} = eds_obj:to_record(Change),
-    eds_obj:delete(Key, Entry).
+    {Key,_Value} = eds_object:to_record(Change),
+    eds_object:delete(Key, Entry).
 
 %% @doc Process CompareRequest
 compare(BindDN, BaseDN, Assertion, Coll) ->
@@ -143,6 +143,7 @@ parse_response([Response]) ->
 rdn(DN) ->
     lists:reverse(DN).
 
+-spec handle_cast(tuple(), #state{}) -> {stop, normal, #state{}}.
 handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, #state{coll=Coll} = State) ->
     {'BindRequest',_, BindDN, Creds} = Options,
     BindResult = bind(BindDN, Creds, Coll),
@@ -197,17 +198,20 @@ handle_cast({{compareRequest, Options}, MessageID, BindDN, From}, #state{coll=Co
 handle_cast(Request, State) ->
     {stop, {unknown_cast, Request}, State}.
 
+-spec handle_call(any(), any(), #state{}) -> {stop, tuple(), #state{}}.
 handle_call(Request,_From, State) ->
     {stop, {unknown_call, Request}, State}.
 
+-spec handle_info(any(), #state{}) -> {stop, any(), #state{}} | {noreply, #state{}}.
 handle_info({'EXIT',_, Reason}, State) ->
     {stop, Reason, State};
-
 handle_info(_Info, State) ->
     {noreply, State}.
 
+-spec terminate(any(), #state{}) -> ok.
 terminate(_Reason,_State) ->
     ok.
 
+-spec code_change(any(), #state{}, any()) -> {ok, #state{}}.
 code_change(_OldVsn, State,_Extra) ->
     {ok, State}.

@@ -5,11 +5,13 @@
 
 -export([filter/1, scope/2, fields/1, limit/1]).
 
+-spec compile_all(list(), list()) -> list().
 compile_all([Token|Tail], Acc) ->
     compile_all(Tail, [compile(Token)|Acc]);
 compile_all([], Acc) -> 
     lists:reverse(Acc).
 
+-spec compile(tuple() | list()) -> list().
 compile(Tokens) when is_list(Tokens) -> compile_all(Tokens, []);
 
 compile({'and', Arg}) -> lists:flatten(compile(Arg));
@@ -31,6 +33,7 @@ compile({any, Arg}) -> ".*" ++ Arg;
 
 compile(Token) -> {unknown_token, Token}.
 
+-spec scope(list(), atom()) -> list().
 scope(BaseObject, wholeSubtree) -> 
     [{"_rdn", {regexp, "^" ++ lists:reverse(BaseObject), []}}];
 scope(BaseObject, baseObject) ->
@@ -38,15 +41,13 @@ scope(BaseObject, baseObject) ->
 scope(BaseObject, singleLevel) ->
     [{"_rdn", {regexp, "^" ++ lists:reverse(BaseObject) ++ ",[\\d\\w\\s=]+$$", []}}].
 
-fields([]) ->
-    [];
-fields(Attrs) ->
-    [{fields, ["dn" | Attrs]}].
+-spec fields(list()) -> list().
+fields([]) -> [];
+fields(Attrs) -> [{fields, ["dn" | Attrs]}].
 
-limit(0) ->
-    [];
-limit(SizeLimit) ->
-    [{limit, SizeLimit}].
+-spec limit(integer()) -> list().
+limit(0) -> [];
+limit(SizeLimit) -> [{limit, SizeLimit}].
 
-filter(Tokens) ->
-    compile(Tokens).
+-spec filter(list()) -> list().
+filter(Tokens) -> compile(Tokens).

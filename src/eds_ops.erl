@@ -14,7 +14,7 @@
 
 -record(state, {coll}).
 
--type maybelist() :: list() | atom().
+-type maybe_list() :: list() | atom().
 
 -spec start_link(list()) -> {ok, pid()}.
 start_link(Coll) ->
@@ -30,7 +30,7 @@ dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
 %% @doc Process BindRequest
--spec bind(list(), tuple(), list()) -> maybelist().
+-spec bind(list(), tuple(), list()) -> maybe_list().
 bind(BindDN, {simple, Password}, Coll) ->
     Filter = {equalityMatch, 
 	      {'AttributeValueAssertion', "userPassword", Password}},
@@ -39,7 +39,7 @@ bind(_BindDN,_Creds,_Coll) ->
     authMethodNotSupported.
 
 %% @doc Process a reply from bind/3 and notify FSM on new BindDN if required
--spec bind_reply(pid(), maybelist(), integer()) -> atom().
+-spec bind_reply(pid(), maybe_list(), integer()) -> atom().
 bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
     BindResult;
 bind_reply(_From, [],_MessageID) ->
@@ -50,7 +50,7 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     success.
 
 %% @doc Process SearchRequest
--spec search(maybelist(), list(), list(), integer(), list(), list(), list()) -> maybelist().
+-spec search(maybe_list(), list(), list(), integer(), list(), list(), list()) -> maybe_list().
 search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes,_Coll) ->
     insufficientAccessRights;
 search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
@@ -63,7 +63,7 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
 		    FieldsOption ++ LimitOption).
 
 %% @doc Process a reply from search/6, send resulting entries to FSM if required
--spec search_reply(pid(), maybelist(), integer()) -> atom().
+-spec search_reply(pid(), maybe_list(), integer()) -> atom().
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
@@ -76,7 +76,7 @@ search_reply(_From, [],_MessageID) ->
     success.
 
 %% @doc Process ModifyDNRequest
--spec modifydn(maybelist(), list(), list(), list(), list()) -> atom().
+-spec modifydn(maybe_list(), list(), list(), list(), list()) -> atom().
 modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -91,7 +91,7 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
     end.	
 
 %% @doc Process AddRequest
--spec add(maybelist(), list(), list(), list()) -> atom().
+-spec add(maybe_list(), list(), list(), list()) -> atom().
 add(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
@@ -104,7 +104,7 @@ add(_BindDN, DN, Attrs, Coll) ->
     end.
 
 %% @doc Process DelRequest
--spec delete(maybelist(), list(), list()) -> atom().
+-spec delete(maybe_list(), list(), list()) -> atom().
 delete(_BindDN, DN, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -114,7 +114,7 @@ delete(_BindDN, DN, Coll) ->
     end.    
 
 %% @doc Process ModifyRequest
--spec modify(maybelist(), list(), list(), list()) -> atom().
+-spec modify(maybe_list(), list(), list(), list()) -> atom().
 modify(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -137,7 +137,7 @@ modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
     eds_object:delete(Key, Entry).
 
 %% @doc Process CompareRequest
--spec compare(maybelist(), list(), list(), list()) -> atom().
+-spec compare(maybe_list(), list(), list(), list()) -> atom().
 compare(BindDN, BaseDN, Assertion, Coll) ->
     Filter = {equalityMatch, Assertion},
     case search(BindDN, BaseDN, baseObject, 1, Filter, [], Coll) of

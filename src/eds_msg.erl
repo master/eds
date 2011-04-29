@@ -15,7 +15,7 @@ decode(Envelope) ->
 	Error -> {error_decoding, Error}
     end.
 
--spec encode({tuple(), integer()}) -> binary().
+-spec encode({tuple(), integer()}) -> list().
 encode({ProtocolOp, MessageID}) when is_tuple(ProtocolOp), is_integer(MessageID) ->
     Message = #'LDAPMessage'{messageID = MessageID, protocolOp = ProtocolOp},
     case asn1rt:encode('LDAP', 'LDAPMessage', Message) of

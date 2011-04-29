@@ -50,7 +50,7 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     success.
 
 %% @doc Process SearchRequest
--spec search(maybe_list(), list(), list(), integer(), list(), list(), list()) -> maybe_list().
+-spec search(maybe_list(), list(), atom(), integer(), tuple() | list(), list(), list()) -> maybe_list().
 search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes,_Coll) ->
     insufficientAccessRights;
 search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
@@ -125,7 +125,7 @@ modify(_BindDN, DN, Attrs, Coll) ->
     end.    
 
 %% @doc Apply ModifyRequest change atoms to an object
--spec modify_apply(tuple(), eds_object:object()) -> eds_object:object().
+-spec modify_apply(tuple(), list()) -> list().
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
     {Key, Value} = eds_object:to_record(Change),
     eds_object:insert(Key, Value, Entry);

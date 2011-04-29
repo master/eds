@@ -37,7 +37,7 @@ init([]) ->
     process_flag(trap_exit, true),
     {ok, listen, #state{binddn=undefined, pool=eds_pool:init()}}.
 
--spec listen(any(), #state{}) -> {next_state, any(), #state{}}.
+-spec listen(any(), #state{}) -> {atom(), atom(), #state{}, _}.
 listen({socket_ready, Socket}, State) when is_port(Socket) ->
     inet:setopts(Socket, [{active, once}, {packet, 0}, binary]),
     {ok, {IP, _Port}} = inet:peername(Socket),
@@ -45,9 +45,9 @@ listen({socket_ready, Socket}, State) when is_port(Socket) ->
 
 listen(Other, State) ->
     error_logger:error_msg("Unexpected message: ~p\n", [Other]),
-    {next_state, listen, State}.
+    {next_state, listen, State, ?TIMEOUT}.
 
--spec read(any(), #state{}) -> {next_state, any(), #state{}} | {stop, any(), #state{}}.
+-spec read(any(), #state{}) -> {next_state, any(), #state{}, _} | {stop, any(), #state{}}.
 read({set_bind, BindDN}, State) ->
     {next_state, read, State#state{binddn=BindDN}, ?TIMEOUT};
 
@@ -112,6 +112,6 @@ terminate(_Reason,_StateName, #state{socket=S}) ->
     (catch gen_tcp:close(S)),
     ok.
 
--spec code_change(any(), atom(), #state{}, any()) -> {ok, #state{}}.
+-spec code_change(any(), atom(), #state{}, any()) -> {ok, atom(), #state{}}.
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.

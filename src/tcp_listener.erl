@@ -16,11 +16,11 @@
                 module          % FSM handling module
                }).
 
--spec start_link(port(), atom()) -> {ok, pid()}.
+-spec start_link(integer(), atom()) -> ignore | {'error', _} | {ok, pid()}.
 start_link(Port, Module) when is_integer(Port), is_atom(Module) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Port, Module], []).
 
--spec init(list()) -> {ok, #state{}} | {error, any()}.
+-spec init(list()) -> {ok, #state{}} | {stop, any()}.
 init([Port, Module]) ->
     process_flag(trap_exit, true),
     Opts = [binary, {packet, 0}, {reuseaddr, true},

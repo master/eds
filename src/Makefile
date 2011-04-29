@@ -11,7 +11,7 @@ $(OUTDIR)/%.beam: %.erl
 	erlc -W $(EFLAGS) -o $(OUTDIR) $<
 
 $(OUTDIR)/LDAP.beam: LDAP.asn1
-	erlc $(ASN_FLAGS) -W $(EFLAGS) -o $(OUTDIR) $<
+	erlc $(ASN_FLAGS) -o $(OUTDIR) $<
 
 clean:
 	-rm -f $(BEAMS) $(ASN_OUT)

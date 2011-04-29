@@ -40,7 +40,7 @@ start_emongo() ->
 start(_Type, _Args) ->
     start_emongo(),
     LdapPort = get_app_env(ldap_port, ?DEF_LDAP_PORT),
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [LdapPort, ldap_fsm]).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [LdapPort, eds_fsm]).
 
 -spec stop(any()) -> ok.
 stop(_S) ->
@@ -67,7 +67,7 @@ init([Port, Module]) ->
 init(client_sup) ->
     Client = {
       undefined, 
-      {ldap_fsm, start_link, []},
+      {eds_fsm, start_link, []},
       temporary, 2000, worker,
       []},
     {ok, {{simple_one_for_one, ?MAX_RESTART, ?MAX_TIME}, [Client]}};
@@ -76,7 +76,7 @@ init(ops_sup) ->
     EmongoColl = get_app_env(emongo_coll, ?DEF_EMONGO_COLL),
     Ops = {
       undefined, 
-      {ldap_ops, start_link, [EmongoColl]},
+      {eds_ops, start_link, [EmongoColl]},
       temporary, 2000, worker,
       []},
     {ok, {{simple_one_for_one, ?MAX_RESTART, ?MAX_TIME}, [Ops]}}.

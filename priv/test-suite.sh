@@ -19,7 +19,7 @@ run_test() {
     ( [ "$RES" = "$MOD" ] && echo "ok." ) || echo "Failed!"
 }
 
-run_test "Cleanup" "mongo eds t/000-cleanup.js" "t/000-cleanup.txt"
+run_test "Cleanup" "mongo --quiet eds t/000-cleanup.js" "t/000-cleanup.txt"
 
 run_test "Initialization" "priv/populate.py t/000-init.ldif" "t/000-init.txt"
 

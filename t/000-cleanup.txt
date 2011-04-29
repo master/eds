@@ -1,2 +1,0 @@
-MongoDB shell version: 1.8.0
-connecting to: eds

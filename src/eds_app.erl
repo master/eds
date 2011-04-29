@@ -46,6 +46,7 @@ start(_Type, _Args) ->
 stop(_S) ->
     ok.
 
+-spec init(list()) -> tuple().
 init([Port, Module]) ->
     TCPListener = {
       tcp_server_sup, 

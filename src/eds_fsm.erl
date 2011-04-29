@@ -16,22 +16,28 @@
 
 -define(TIMEOUT, 120000).
 
+-spec start_link() -> {ok, pid()}.
 start_link() ->
     gen_fsm:start_link(?MODULE, [], []).
 
+-spec set_socket(pid(), port()) -> ok.
 set_socket(Pid, Socket) when is_pid(Pid), is_port(Socket) ->
     gen_fsm:send_event(Pid, {socket_ready, Socket}).
 
+-spec reply(pid(), any()) -> ok.
 reply(Pid, Message) when is_pid(Pid)  ->
     gen_fsm:send_event(Pid, {out, Message}).
 
+-spec set_bind(pid(), any()) -> ok.
 set_bind(Pid, BindDN) when is_pid(Pid)  ->
     gen_fsm:send_event(Pid, {set_bind, BindDN}).
 
+-spec init([]) -> {ok, listen, #state{}}.
 init([]) ->
     process_flag(trap_exit, true),
     {ok, listen, #state{binddn=undefined, ops=bush:init()}}.
 
+-spec listen(any(), #state{}) -> {next_state, any(), #state{}}.
 listen({socket_ready, Socket}, State) when is_port(Socket) ->
     inet:setopts(Socket, [{active, once}, {packet, 0}, binary]),
     {ok, {IP, _Port}} = inet:peername(Socket),
@@ -41,6 +47,7 @@ listen(Other, State) ->
     error_logger:error_msg("Unexpected message: ~p\n", [Other]),
     {next_state, listen, State}.
 
+-spec read(any(), #state{}) -> {next_state, any(), #state{}} | {stop, any(), #state{}}.
 read({set_bind, BindDN}, State) ->
     {next_state, read, State#state{binddn=BindDN}, ?TIMEOUT};
 
@@ -74,12 +81,15 @@ read(timeout, State) ->
 read(_Data,  State) ->
     {stop, normal, State}.
 
+-spec handle_event(any(), atom(), #state{}) -> {stop, tuple(), #state{}}.
 handle_event(Event, StateName, State) ->
     {stop, {StateName, undefined_event, Event}, State}.
 
+-spec handle_sync_event(any(), any(), atom(), #state{}) -> {stop, tuple(), #state{}}.
 handle_sync_event(Event, _From, StateName, State) ->
     {stop, {StateName, undefined_event, Event}, State}.
 
+-spec handle_info(any(), atom(), #state{}) -> {atom(), atom(), #state{}}.
 handle_info({tcp, S, Bin}, StateName, #state{socket=S} = State) ->
     inet:setopts(S, [{active, once}]),
     ?MODULE:StateName({in, eds_msg:decode(Bin)}, State);
@@ -97,9 +107,11 @@ handle_info({'EXIT', Pid,_}, StateName, #state{ops=Ops} = State) ->
 handle_info(_Info, StateName, State) ->
     {noreply, StateName, State}.
 
+-spec terminate(any(), atom(), #state{}) -> ok.
 terminate(_Reason,_StateName, #state{socket=S}) ->
     (catch gen_tcp:close(S)),
     ok.
 
+-spec code_change(any(), atom(), #state{}, any()) -> {ok, #state{}}.
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.

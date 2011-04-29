@@ -11,6 +11,8 @@
 -type value() :: list() | bitstring() | tuple().
 -type object() :: list().
 
+-explort_type([key/0, value/0, object/0]).
+
 %% @doc Replace an attribute:value pair in an LDAP object
 -spec modify(key(), value(), object()) -> object().
 modify(Key, Value, Object) when is_list(Key) ->

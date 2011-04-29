@@ -14,17 +14,23 @@
 
 -record(state, {coll}).
 
+-type maybelist() :: list() | atom().
+
+-spec start_link(list()) -> {ok, pid()}.
 start_link(Coll) ->
     gen_server:start_link(?MODULE, [Coll], []).
 
+-spec init(list()) -> {ok, #state{}}.
 init([Coll]) ->
     {ok, #state{coll=Coll}}.
 
 %% @doc Dispatch a message to eds_ops worker
+-spec dispatch(pid(), tuple(), integer(), list(), pid()) -> ok.
 dispatch(Pid, ProtocolOp, MessageID, BindDN, From) ->
     gen_server:cast(Pid, {ProtocolOp, MessageID, BindDN, From}).
 
 %% @doc Process BindRequest
+-spec bind(list(), tuple(), list()) -> maybelist().
 bind(BindDN, {simple, Password}, Coll) ->
     Filter = {equalityMatch, 
 	      {'AttributeValueAssertion', "userPassword", Password}},
@@ -33,6 +39,7 @@ bind(_BindDN,_Creds,_Coll) ->
     authMethodNotSupported.
 
 %% @doc Process a reply from bind/3 and notify FSM on new BindDN if required
+-spec bind_reply(pid(), maybelist(), integer()) -> atom().
 bind_reply(_From, BindResult,_MessageID) when is_atom(BindResult) ->
     BindResult;
 bind_reply(_From, [],_MessageID) ->
@@ -43,6 +50,7 @@ bind_reply(From, [BindResult],_MessageID) when is_list(BindResult) ->
     success.
 
 %% @doc Process SearchRequest
+-spec search(maybelist(), list(), list(), integer(), list(), list(), list()) -> maybelist().
 search(undefined,_BaseObject,_Scope,_SizeLimit,_Filter,_Attributes,_Coll) ->
     insufficientAccessRights;
 search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
@@ -54,7 +62,8 @@ search(_BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll) ->
 		    ScopeFilter ++ EntryFilter,
 		    FieldsOption ++ LimitOption).
 
-%% @doc Process a reply from search/6, send result entries to FSM if required
+%% @doc Process a reply from search/6, send resulting entries to FSM if required
+-spec search_reply(pid(), maybelist(), integer()) -> atom().
 search_reply(_From, SearchResult,_MessageID) when is_atom(SearchResult) ->
     SearchResult;
 search_reply(From, [Item|Result], MessageID) ->
@@ -67,6 +76,7 @@ search_reply(_From, [],_MessageID) ->
     success.
 
 %% @doc Process ModifyDNRequest
+-spec modifydn(maybelist(), list(), list(), list(), list()) -> atom().
 modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -81,6 +91,7 @@ modifydn(_BindDN, DN, NewRDN,_DeleteOldRDN, Coll) ->
     end.	
 
 %% @doc Process AddRequest
+-spec add(maybelist(), list(), list(), list()) -> atom().
 add(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[_Entry] -> entryAlreadyExists;
@@ -93,6 +104,7 @@ add(_BindDN, DN, Attrs, Coll) ->
     end.
 
 %% @doc Process DelRequest
+-spec delete(maybelist(), list(), list()) -> atom().
 delete(_BindDN, DN, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -102,6 +114,7 @@ delete(_BindDN, DN, Coll) ->
     end.    
 
 %% @doc Process ModifyRequest
+-spec modify(maybelist(), list(), list(), list()) -> atom().
 modify(_BindDN, DN, Attrs, Coll) ->
     case emongo:find_one(eds, Coll, [{"_rdn", rdn(DN)}]) of
 	[] -> noSuchObject;
@@ -112,6 +125,7 @@ modify(_BindDN, DN, Attrs, Coll) ->
     end.    
 
 %% @doc Apply ModifyRequest change atoms to an object
+-spec modify_apply(tuple(), eds_object:object()) -> eds_object:object().
 modify_apply({'ModifyRequest_changes_SEQOF', add, Change}, Entry) ->
     {Key, Value} = eds_object:to_record(Change),
     eds_object:insert(Key, Value, Entry);
@@ -123,6 +137,7 @@ modify_apply({'ModifyRequest_changes_SEQOF', delete, Change}, Entry) ->
     eds_object:delete(Key, Entry).
 
 %% @doc Process CompareRequest
+-spec compare(maybelist(), list(), list(), list()) -> atom().
 compare(BindDN, BaseDN, Assertion, Coll) ->
     Filter = {equalityMatch, Assertion},
     case search(BindDN, BaseDN, baseObject, 1, Filter, [], Coll) of
@@ -133,6 +148,7 @@ compare(BindDN, BaseDN, Assertion, Coll) ->
     end.
 
 %% @doc Parse eMongo response code
+-spec parse_response(list()) -> atom().
 parse_response([Response]) ->
     case lists:keyfind(<<"err">>, 1, Response) of
 	{<<"err">>, undefined} -> success;
@@ -140,6 +156,7 @@ parse_response([Response]) ->
     end.
 
 %% @doc Create a reveresed DN from a DN
+-spec rdn(list()) -> list().
 rdn(DN) ->
     lists:reverse(DN).
 

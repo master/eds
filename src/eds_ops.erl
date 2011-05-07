@@ -160,60 +160,63 @@ parse_response([Response]) ->
 rdn(DN) ->
     lists:reverse(DN).
 
--spec handle_cast(tuple(), #state{}) -> {stop, normal, #state{}}.
-handle_cast({{bindRequest, Options}, MessageID,_BindDN, From}, #state{coll=Coll} = State) ->
-    {'BindRequest',_, BindDN, Creds} = Options,
-    BindResult = bind(BindDN, Creds, Coll),
-    Result = bind_reply(From, BindResult, MessageID),
-    Response = #'BindResponse'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{bindResponse, Response}, MessageID}),
-    {stop, normal, State};
-
-handle_cast({{searchRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
-    {'SearchRequest', BaseObject, Scope,_, SizeLimit,_,_, Filter, Attributes} = Options,
-    SearchResult = search(BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll),
-    Result = search_reply(From, SearchResult, MessageID),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{searchResDone, Response}, MessageID}),
-    {stop, normal, State};
-
-handle_cast({{modifyRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+-spec process(tuple(), list()) -> maybe_list().
+process({{bindRequest, Options}, _, _BindDN, _}, Coll) ->
+    {'BindRequest',_, NewBindDN, Creds} = Options,
+    bind(NewBindDN, Creds, Coll);
+process({{searchRequest, Options}, _, BindDN, _}, Coll) ->
+    {'SearchRequest', BaseObject, Scope, _, SizeLimit, _, _, Filter, Attributes} = Options,
+    search(BindDN, BaseObject, Scope, SizeLimit, Filter, Attributes, Coll);
+process({{modifyRequest, Options}, _, BindDN, _}, Coll) ->
     {'ModifyRequest', DN, Attributes} = Options,
-    Result = modify(BindDN, DN, Attributes, Coll),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{modifyResponse, Response}, MessageID}),
-    {stop, normal, State};
-
-handle_cast({{addRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+    modify(BindDN, DN, Attributes, Coll);
+process({{addRequest, Options}, _, BindDN, _}, Coll) ->
     {'AddRequest', DN, Attributes} = Options,
-    Result = add(BindDN, DN, Attributes, Coll),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{addResponse, Response}, MessageID}),
-    {stop, normal, State};
-
-handle_cast({{delRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+    add(BindDN, DN, Attributes, Coll);
+process({{delRequest, Options}, _, BindDN, _}, Coll) ->
     DN = Options,
-    Result = delete(BindDN, DN, Coll),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{delResponse, Response}, MessageID}),
-    {stop, normal, State};
-
-handle_cast({{modDNRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+    delete(BindDN, DN, Coll);
+process({{modDNRequest, Options}, _, BindDN, _}, Coll) ->
     {'ModifyDNRequest', DN, NewRDN, DeleteOldRDN,_} = Options,
-    Result = modifydn(BindDN, DN, NewRDN, DeleteOldRDN, Coll),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{modDNResponse, Response}, MessageID}),    
-    {stop, normal, State};
-
-handle_cast({{compareRequest, Options}, MessageID, BindDN, From}, #state{coll=Coll} = State) ->
+    modifydn(BindDN, DN, NewRDN, DeleteOldRDN, Coll);
+process({{compareRequest, Options}, _, BindDN, _}, Coll) ->
     {'CompareRequest', DN, Assertion} = Options,
-    Result = compare(BindDN, DN, Assertion, Coll),
-    Response = #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""},
-    eds_fsm:reply(From, {{compareResponse, Response}, MessageID}),    
-    {stop, normal, State};
+    compare(BindDN, DN, Assertion, Coll).
 
-handle_cast(Request, State) ->
-    {stop, {unknown_cast, Request}, State}.
+-spec response(tuple(), maybe_list()) -> atom().
+response({{bindRequest, _}, MessageID, _, From}, Result) ->
+    Code = bind_reply(From, Result, MessageID),
+    #'BindResponse'{resultCode = Code, matchedDN = "", diagnosticMessage = ""};
+response({{searchRequest, _}, MessageID, _, From}, Result) ->
+    Code = search_reply(From, Result, MessageID),
+    #'LDAPResult'{resultCode = Code, matchedDN = "", diagnosticMessage = ""};
+response(_, Result) ->
+    #'LDAPResult'{resultCode = Result, matchedDN = "", diagnosticMessage = ""}.
+
+-spec message(tuple(), record()) -> tuple().
+message({{bindRequest, _}, MessageID, _, _}, Response) ->
+    {{bindResponse, Response}, MessageID};
+message({{searchRequest, _}, MessageID, _, _}, Response) ->
+    {{searchResDone, Response}, MessageID};
+message({{modifyRequest, _}, MessageID, _, _}, Response) ->
+    {{modifyResponse, Response}, MessageID};
+message({{addRequest, _}, MessageID, _, _}, Response) ->
+    {{addResponse, Response}, MessageID};
+message({{delRequest, _}, MessageID, _, _}, Response) ->
+    {{delResponse, Response}, MessageID};
+message({{modDNRequest, _}, MessageID, _, _}, Response) ->
+    {{modDNResponse, Response}, MessageID};
+message({{compareRequest, _}, MessageID, _, _}, Response) ->
+    {{compareResponse, Response}, MessageID}.
+
+-spec handle_cast(tuple(), #state{}) -> {stop, normal, #state{}}.
+handle_cast(Request, #state{coll=Coll} = State) ->
+    Result = process(Request, Coll),
+    Response = response(Request, Result),
+    Message = message(Request, Response),
+    {_, _, _, From} = Request,
+    eds_fsm:reply(From, Message),
+    {stop, normal, State}.
 
 -spec handle_call(any(), any(), #state{}) -> {stop, tuple(), #state{}}.
 handle_call(Request,_From, State) ->
